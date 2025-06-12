@@ -1,0 +1,28 @@
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
+
+export default defineSchema({
+  users: defineTable({
+    clerkId: v.string(),
+    name: v.string(),
+    email: v.string(),
+    avatarUrl: v.optional(v.string()),
+    apiKey: v.optional(v.string()), // encrypted user's OpenRouter API key
+  }).index("by_clerk_id", ["clerkId"]),
+
+  conversations: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    modelSlug: v.string(), // e.g., "anthropic/claude-3-haiku"
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  messages: defineTable({
+    conversationId: v.id("conversations"),
+    role: v.union(v.literal("user"), v.literal("assistant")),
+    content: v.string(),
+    timestamp: v.number(),
+    // future: attachments, tokens used, etc.
+  }).index("by_conversation", ["conversationId"]),
+});
