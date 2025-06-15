@@ -3,6 +3,31 @@ import { v } from "convex/values";
 import { api } from "./_generated/api";
 import OpenAI from "openai";
 
+const generateTitle = async (openai: OpenAI, firstMessage: string): Promise<string> => {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "openai/gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "Generate a concise, descriptive title (max 6 words) for a conversation that starts with the following message. Return only the title, no quotes or extra text."
+        },
+        {
+          role: "user", 
+          content: firstMessage
+        }
+      ],
+      max_tokens: 20,
+      temperature: 0.7,
+    });
+
+    return response.choices[0]?.message?.content?.trim() || "New Chat";
+  } catch (error) {
+    console.error("Failed to generate title:", error);
+    return "New Chat";
+  }
+};
+
 export const sendMessage = action({
   args: {
     conversationId: v.id("conversations"),
@@ -17,6 +42,12 @@ export const sendMessage = action({
       id: args.conversationId,
     });
     if (!conversation) throw new Error("Conversation not found");
+
+    // check if this is the first message in the conversation
+    const existingMessages = await ctx.runQuery(api.messages.getMessages, {
+      conversationId: args.conversationId,
+    });
+    const isFirstMessage = existingMessages.length === 0;
 
     // add user message
     await ctx.runMutation(api.messages.addMessage, {
@@ -47,6 +78,15 @@ export const sendMessage = action({
     });
 
     try {
+      // generate title if this is the first message
+      if (isFirstMessage) {
+        const title = await generateTitle(openai, args.prompt);
+        await ctx.runMutation(api.conversations.updateConversationTitle, {
+          id: args.conversationId,
+          title,
+        });
+      }
+
       // create assistant message placeholder
       const assistantMessageId = await ctx.runMutation(api.messages.addMessage, {
         conversationId: args.conversationId,

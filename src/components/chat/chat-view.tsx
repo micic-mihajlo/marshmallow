@@ -20,6 +20,8 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
   
   const convexMessages = useQuery(api.messages.getMessages, { conversationId })
   const sendMessage = useAction(api.chat.sendMessage)
+  const updateConversationModel = useMutation(api.conversations.updateConversationModel)
+  const updateConversationTitle = useMutation(api.conversations.updateConversationTitle)
 
   // Transform Convex messages to display format
   const messages = convexMessages?.map(m => ({
@@ -31,6 +33,28 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value)
   }, [])
+
+  const handleModelChange = useCallback(async (modelId: string) => {
+    try {
+      await updateConversationModel({
+        id: conversationId,
+        modelSlug: modelId,
+      })
+    } catch (error) {
+      console.error("Failed to update model:", error)
+    }
+  }, [updateConversationModel, conversationId])
+
+  const handleTitleChange = useCallback(async (title: string) => {
+    try {
+      await updateConversationTitle({
+        id: conversationId,
+        title,
+      })
+    } catch (error) {
+      console.error("Failed to update title:", error)
+    }
+  }, [updateConversationTitle, conversationId])
 
   const handleSendMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,7 +80,13 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
   if (convexMessages === undefined) {
     return (
       <div className="flex-1 flex flex-col h-full">
-        <ChatHeader conversationTitle={conversationTitle} modelSlug={modelSlug} />
+        <ChatHeader 
+          conversationTitle={conversationTitle} 
+          modelSlug={modelSlug}
+          onModelChange={handleModelChange}
+          onTitleChange={handleTitleChange}
+          isLoading={isLoading}
+        />
         <div className="flex-1 flex items-center justify-center">
           <div className="h-6 w-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -65,8 +95,14 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full">
-      <ChatHeader conversationTitle={conversationTitle} modelSlug={modelSlug} />
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <ChatHeader 
+        conversationTitle={conversationTitle} 
+        modelSlug={modelSlug}
+        onModelChange={handleModelChange}
+        onTitleChange={handleTitleChange}
+        isLoading={isLoading}
+      />
       <MessagesContainer messages={messages} isLoading={isLoading} />
       <ChatInput
         input={input}
