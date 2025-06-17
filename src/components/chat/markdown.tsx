@@ -163,7 +163,7 @@ const components: any = {
     // unwrap paragraphs that contain only one inline element to avoid full-line block look
     if (Array.isArray(children) && children.length === 1) {
       const child = children[0] as React.ReactElement
-      if (child && ["code", "em", "strong"].includes((child.type as any)?.name || (child.type as any))) {
+      if (child && (child.type === 'code' || child.type === 'em' || child.type === 'strong')) {
         return <span className="text-[15px] text-gray-700">{child}</span>
       }
     }
