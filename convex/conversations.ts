@@ -17,11 +17,30 @@ export const createConversation = mutation({
 
     if (!user) throw new Error("User not found");
 
+    // If no model is specified, use the first enabled model
+    let modelSlug = args.modelSlug;
+    if (!modelSlug) {
+      const enabledSettings = await ctx.db
+        .query("modelSettings")
+        .withIndex("by_enabled", (q) => q.eq("enabled", true))
+        .first();
+      
+      if (enabledSettings) {
+        const model = await ctx.db.get(enabledSettings.modelId);
+        if (model) {
+          modelSlug = model.slug;
+        }
+      }
+      
+      // Fallback to a default model if no enabled models exist
+      modelSlug = modelSlug || "anthropic/claude-3-haiku";
+    }
+
     const now = Date.now();
     return await ctx.db.insert("conversations", {
       userId: user._id,
       title: args.title,
-      modelSlug: args.modelSlug || "google/gemini-2.5-flash-preview-05-20",
+      modelSlug,
       createdAt: now,
       updatedAt: now,
     });

@@ -2,7 +2,7 @@
 
 import { SignInButton, UserButton, useAuth } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
-import { MessageSquare, Sparkles, Users, Zap, Check, Star, ArrowRight, Shield, Clock, TrendingUp, Brain, Rocket, Crown } from "lucide-react"
+import { Sparkles, Users, Zap, Check, Star, ArrowRight, Shield, Clock, TrendingUp, Brain, Rocket, Crown } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 
