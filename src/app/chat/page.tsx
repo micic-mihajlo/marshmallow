@@ -17,6 +17,7 @@ export default function ChatPage() {
 
   const conversations = useQuery(api.conversations.getUserConversations)
   const createConversation = useMutation(api.conversations.createConversation)
+  const deleteConversation = useMutation(api.conversations.deleteConversation)
   
   const effectiveConversationId = selectedConversationId || (conversations && conversations.length > 0 ? conversations[0]._id : null)
   const selectedConversation = conversations?.find(c => c._id === effectiveConversationId)
@@ -68,16 +69,37 @@ export default function ChatPage() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <ChatSidebar
-        conversations={conversations}
-        selectedConversationId={effectiveConversationId}
-        onSelectConversation={setSelectedConversationId}
-        onCreateConversation={handleCreateConversation}
-      />
+  const handleDeleteConversation = async (conversationId: Id<"conversations">) => {
+    try {
+      await deleteConversation({ id: conversationId })
+      
+      // if we deleted the currently selected conversation, select another one
+      if (selectedConversationId === conversationId) {
+        const remainingConversations = conversations?.filter(c => c._id !== conversationId)
+        if (remainingConversations && remainingConversations.length > 0) {
+          setSelectedConversationId(remainingConversations[0]._id)
+        } else {
+          setSelectedConversationId(null)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to delete conversation:", error)
+    }
+  }
 
-      <main className="flex-1 flex flex-col h-screen">
+  return (
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
+      <div className="flex-shrink-0">
+        <ChatSidebar
+          conversations={conversations}
+          selectedConversationId={effectiveConversationId}
+          onSelectConversation={setSelectedConversationId}
+          onCreateConversation={handleCreateConversation}
+          onDeleteConversation={handleDeleteConversation}
+        />
+      </div>
+
+      <main className="flex-1 flex flex-col min-w-0">
         {effectiveConversationId ? (
           <ChatView
             key={effectiveConversationId}

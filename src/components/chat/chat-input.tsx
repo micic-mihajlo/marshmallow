@@ -22,7 +22,7 @@ export function ChatInput({ input, isLoading, onInputChange, onSubmit }: ChatInp
   }
 
   return (
-    <div className="border-t border-gray-200 bg-white px-4 py-4">
+    <div className="flex-shrink-0 border-t border-gray-200 bg-white px-4 py-4">
       <div className="max-w-4xl mx-auto">
         <form onSubmit={onSubmit} className="relative">
           <input
