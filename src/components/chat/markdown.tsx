@@ -3,10 +3,14 @@
 import { memo } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import remarkMath from "remark-math"
+import rehypeKatex from "rehype-katex"
+import rehypeRaw from "rehype-raw"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { Check, Copy } from "lucide-react"
 import { useState } from "react"
+import "katex/dist/katex.min.css"
 
 interface CodeBlockProps {
   inline?: boolean
@@ -134,6 +138,24 @@ const isMinimalMarkdown = (content: string): boolean => {
   return markdownElements <= 2
 }
 
+// helper function to convert <think>...</think> into a collapsible markdown details block
+const formatChainOfThought = (input: string): string => {
+  // handle case where thinking is in progress (incomplete)
+  if (input.includes('<think>') && !input.includes('</think>')) {
+    const parts = input.split('<think>')
+    if (parts.length === 2) {
+      const [before, reasoning] = parts
+      return `${before}\n\n<details open style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 20px 0; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);"><summary style="font-weight: 600; color: #334155; cursor: pointer; margin-bottom: 12px; font-size: 15px; display: flex; align-items: center; gap: 8px;"><span style="display: inline-block; width: 6px; height: 6px; background: #64748b; border-radius: 50%; opacity: 0.7;"></span>Reasoning Process</summary>\n\n<div style="font-size: 13px; color: #64748b; font-weight: 400; line-height: 1.6; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; background: #ffffff; padding: 12px; border-radius: 8px; border: 1px solid #f1f5f9; overflow-x: auto;">\n\n${reasoning.trim()}\n\n</div>\n\n</details>\n\n`
+    }
+  }
+  
+  // handle complete reasoning blocks
+  return input.replace(/<think>([\s\S]*?)<\/think>/gim, (_, reasoning) => {
+    const trimmed = reasoning.trim()
+    return `\n\n<details style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 20px 0; background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);"><summary style="font-weight: 600; color: #334155; cursor: pointer; margin-bottom: 12px; font-size: 15px; display: flex; align-items: center; gap: 8px;"><span style="display: inline-block; width: 6px; height: 6px; background: #64748b; border-radius: 50%; opacity: 0.7;"></span>Reasoning Process</summary>\n\n<div style="font-size: 13px; color: #64748b; font-weight: 400; line-height: 1.6; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; background: #ffffff; padding: 12px; border-radius: 8px; border: 1px solid #f1f5f9; overflow-x: auto;">\n\n${trimmed}\n\n</div>\n\n</details>\n\n`
+  })
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const components: any = {
   code: CodeBlock,
@@ -187,8 +209,10 @@ const minimalComponents: any = {
 
 export const MemoizedMarkdown = memo(
   ({ content }: { content: string; id: string }) => {
-    const isPureInline = isPureInlineContent(content)
-    const isMinimal = isMinimalMarkdown(content)
+    // transform any <think> tags before further processing
+    const transformedContent = formatChainOfThought(content)
+    const isPureInline = isPureInlineContent(transformedContent)
+    const isMinimal = isMinimalMarkdown(transformedContent)
     
     // for pure inline content, render with minimal styling
     if (isPureInline) {
@@ -196,9 +220,10 @@ export const MemoizedMarkdown = memo(
         <div className="inline">
           <ReactMarkdown
             components={minimalComponents}
-            remarkPlugins={[remarkGfm]}
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeKatex, rehypeRaw]}
           >
-            {content}
+            {transformedContent}
           </ReactMarkdown>
         </div>
       )
@@ -213,9 +238,10 @@ export const MemoizedMarkdown = memo(
               ...components,
               p: ({ children }: { children: React.ReactNode }) => <p className="mb-2 text-[15px] leading-[1.6] text-gray-700">{children}</p>,
             }}
-            remarkPlugins={[remarkGfm]}
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeKatex, rehypeRaw]}
           >
-            {content}
+            {transformedContent}
           </ReactMarkdown>
         </div>
       )
@@ -226,9 +252,10 @@ export const MemoizedMarkdown = memo(
       <div className="prose-sm max-w-none">
         <ReactMarkdown
           components={components}
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[rehypeKatex, rehypeRaw]}
         >
-          {content}
+          {transformedContent}
         </ReactMarkdown>
       </div>
     )
