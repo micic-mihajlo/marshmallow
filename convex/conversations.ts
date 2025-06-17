@@ -5,6 +5,7 @@ export const createConversation = mutation({
   args: {
     title: v.string(),
     modelSlug: v.optional(v.string()),
+    mcpUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -22,6 +23,7 @@ export const createConversation = mutation({
       userId: user._id,
       title: args.title,
       modelSlug: args.modelSlug || "google/gemini-2.5-flash-preview-05-20",
+      mcpUrl: args.mcpUrl ?? undefined,
       createdAt: now,
       updatedAt: now,
     });
@@ -121,6 +123,34 @@ export const updateConversationTitle = mutation({
 
     await ctx.db.patch(args.id, {
       title: args.title,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const updateConversationMcpUrl = mutation({
+  args: {
+    id: v.id("conversations"),
+    mcpUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const conversation = await ctx.db.get(args.id);
+    if (!conversation) throw new Error("Conversation not found");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user || conversation.userId !== user._id) {
+      throw new Error("Unauthorized");
+    }
+
+    await ctx.db.patch(args.id, {
+      mcpUrl: args.mcpUrl ?? undefined,
       updatedAt: Date.now(),
     });
   },

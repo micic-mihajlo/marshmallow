@@ -12,9 +12,10 @@ interface ChatViewProps {
   conversationId: Id<"conversations">
   conversationTitle?: string
   modelSlug?: string
+  mcpUrl?: string
 }
 
-export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatViewProps) {
+export function ChatView({ conversationId, conversationTitle, modelSlug, mcpUrl }: ChatViewProps) {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   
@@ -22,9 +23,10 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
   const sendMessage = useAction(api.chat.sendMessage)
   const updateConversationModel = useMutation(api.conversations.updateConversationModel)
   const updateConversationTitle = useMutation(api.conversations.updateConversationTitle)
+  const updateConversationMcpUrl = useMutation(api.conversations.updateConversationMcpUrl)
 
   // Transform Convex messages to display format
-  const messages = convexMessages?.map(m => ({
+  const messages = convexMessages?.map((m: any) => ({
     id: m._id,
     role: m.role as "user" | "assistant",
     content: m.content,
@@ -56,6 +58,17 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
     }
   }, [updateConversationTitle, conversationId])
 
+  const handleMcpUrlChange = useCallback(async (url: string) => {
+    try {
+      await updateConversationMcpUrl({
+        id: conversationId,
+        mcpUrl: url || undefined,
+      })
+    } catch (error) {
+      console.error("Failed to update MCP URL:", error)
+    }
+  }, [updateConversationMcpUrl, conversationId])
+
   const handleSendMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
@@ -83,8 +96,10 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
         <ChatHeader 
           conversationTitle={conversationTitle} 
           modelSlug={modelSlug}
+          mcpUrl={mcpUrl}
           onModelChange={handleModelChange}
           onTitleChange={handleTitleChange}
+          onMcpUrlChange={handleMcpUrlChange}
           isLoading={isLoading}
         />
         <div className="flex-1 flex items-center justify-center">
@@ -99,8 +114,10 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
       <ChatHeader 
         conversationTitle={conversationTitle} 
         modelSlug={modelSlug}
+        mcpUrl={mcpUrl}
         onModelChange={handleModelChange}
         onTitleChange={handleTitleChange}
+        onMcpUrlChange={handleMcpUrlChange}
         isLoading={isLoading}
       />
       <MessagesContainer messages={messages} isLoading={isLoading} />

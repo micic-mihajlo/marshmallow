@@ -14,6 +14,7 @@ export default defineSchema({
     userId: v.id("users"),
     title: v.string(),
     modelSlug: v.string(), // e.g., "anthropic/claude-3-haiku"
+    mcpUrl: v.optional(v.string()), // optional MCP server URL
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),

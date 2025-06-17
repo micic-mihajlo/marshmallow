@@ -106,6 +106,7 @@ export default function ChatPage() {
             conversationId={effectiveConversationId}
             conversationTitle={selectedConversation?.title}
             modelSlug={selectedConversation?.modelSlug}
+            mcpUrl={selectedConversation?.mcpUrl}
           />
         ) : (
           <EmptyState onCreateConversation={handleCreateConversation} />
