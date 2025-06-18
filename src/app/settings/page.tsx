@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
+import { useUser } from "@clerk/nextjs";
 import { api } from "../../../convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ interface ModelPreference {
 }
 
 export default function SettingsPage() {
+  const { isSignedIn } = useUser();
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [preferences, setPreferences] = useState<ModelPreference[]>([]);
@@ -39,7 +41,10 @@ export default function SettingsPage() {
   const [selectedProvider, setSelectedProvider] = useState("all");
   const [showEnabledOnly, setShowEnabledOnly] = useState(false);
 
-  const modelPreferences = useQuery(api.userModelPreferences.getUserModelPreferences, {});
+  const modelPreferences = useQuery(
+    api.userModelPreferences.getUserModelPreferences, 
+    isSignedIn ? {} : "skip"
+  );
   const updatePreferences = useMutation(api.userModelPreferences.updateUserModelPreferences);
   const resetPreferences = useMutation(api.userModelPreferences.resetUserModelPreferences);
 
