@@ -145,7 +145,13 @@ export const sendMessage = action({
                       const pdfResponse = await fetch(attachment.url);
                       if (pdfResponse.ok) {
                         const pdfBuffer = await pdfResponse.arrayBuffer();
-                        const base64Pdf = Buffer.from(pdfBuffer).toString('base64');
+                        // Convert ArrayBuffer to base64 using browser-compatible method
+                        const uint8Array = new Uint8Array(pdfBuffer);
+                        let binaryString = '';
+                        for (let i = 0; i < uint8Array.length; i++) {
+                          binaryString += String.fromCharCode(uint8Array[i]);
+                        }
+                        const base64Pdf = btoa(binaryString);
                         const dataUrl = `data:application/pdf;base64,${base64Pdf}`;
                         
                         // Add PDF in OpenRouter's required format
