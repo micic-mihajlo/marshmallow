@@ -153,8 +153,8 @@ export function FileUpload({ conversationId, onFileUploaded, onError }: FileUplo
         }}
         disabled={isUploading}
         className={cn(
-          "p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50",
-          isUploading && "cursor-not-allowed"
+          "p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-all duration-200 hover:scale-105 active:scale-100",
+          isUploading && "cursor-not-allowed animate-pulse"
         )}
         title="Attach file"
       >

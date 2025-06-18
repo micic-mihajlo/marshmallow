@@ -245,4 +245,126 @@ export const updateConversationWebSearch = mutation({
 
     return args.id;
   },
+});
+
+// Sharing functionality
+export const toggleConversationSharing = mutation({
+  args: {
+    id: v.id("conversations"),
+    isPublic: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const conversation = await ctx.db.get(args.id);
+    if (!conversation) throw new Error("Conversation not found");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user || conversation.userId !== user._id) {
+      throw new Error("Unauthorized");
+    }
+
+    // Generate a unique share ID if enabling sharing for the first time
+    let shareId = conversation.shareId;
+    if (args.isPublic && !shareId) {
+      // Generate a unique share ID (combination of timestamp and random string)
+      shareId = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    }
+
+    await ctx.db.patch(args.id, {
+      isPublic: args.isPublic,
+      shareId: shareId,
+      updatedAt: Date.now(),
+    });
+
+    return shareId;
+  },
+});
+
+// Get public conversation by share ID (no auth required)
+export const getPublicConversation = query({
+  args: { shareId: v.string() },
+  handler: async (ctx, args) => {
+    const conversation = await ctx.db
+      .query("conversations")
+      .withIndex("by_share_id", (q) => q.eq("shareId", args.shareId))
+      .first();
+
+    if (!conversation || !conversation.isPublic) {
+      return null;
+    }
+
+    // Get the owner's name for display
+    const owner = await ctx.db.get(conversation.userId);
+
+    return {
+      conversation,
+      ownerName: owner?.name || "Anonymous",
+    };
+  },
+});
+
+// Clone a shared conversation for the current user
+export const cloneConversation = mutation({
+  args: {
+    shareId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user) throw new Error("User not found");
+
+    // Get the original conversation
+    const originalConversation = await ctx.db
+      .query("conversations")
+      .withIndex("by_share_id", (q) => q.eq("shareId", args.shareId))
+      .first();
+
+    if (!originalConversation || !originalConversation.isPublic) {
+      throw new Error("Conversation not found or not public");
+    }
+
+    // Get all messages from the original conversation
+    const originalMessages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", (q) => q.eq("conversationId", originalConversation._id))
+      .collect();
+
+    // Create new conversation
+    const now = Date.now();
+    const newConversationId = await ctx.db.insert("conversations", {
+      userId: user._id,
+      title: `${originalConversation.title} (Copy)`,
+      modelSlug: originalConversation.modelSlug,
+      webSearchEnabled: originalConversation.webSearchEnabled,
+      webSearchOptions: originalConversation.webSearchOptions,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Copy all messages to the new conversation
+    for (const message of originalMessages) {
+      await ctx.db.insert("messages", {
+        conversationId: newConversationId,
+        role: message.role,
+        content: message.content,
+        timestamp: message.timestamp,
+        tokenCount: message.tokenCount,
+        // Note: We don't copy file attachments to avoid permission issues
+      });
+    }
+
+    return newConversationId;
+  },
 }); 

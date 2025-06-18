@@ -227,13 +227,19 @@ export const sendMessage = action({
         if (hasPdfAttachments) break;
       }
 
-      // check if web search is enabled or model has :online suffix
-      const isWebSearchEnabled = conversation.webSearchEnabled || conversation.modelSlug.endsWith(":online");
-      const webSearchOptions = conversation.webSearchOptions;
+      // check if web search is enabled
+      const isWebSearchEnabled = conversation.webSearchEnabled;
+      
+      // determine model to use - append :online if web search is enabled
+      let modelToUse = conversation.modelSlug;
+      if (isWebSearchEnabled && !conversation.modelSlug.endsWith(":online")) {
+        modelToUse = conversation.modelSlug + ":online";
+        console.log("[Chat] Using web search model:", modelToUse);
+      }
 
       // prepare request parameters
       const requestParams: any = {
-        model: conversation.modelSlug,
+        model: modelToUse,
         messages: formattedMessages,
         stream: true,
         max_tokens: 2000,
@@ -242,21 +248,13 @@ export const sendMessage = action({
         user: `user_${user._id}`,
       };
 
-      // Configure plugins
+      // Configure plugins (only for PDF now)
       const plugins: any[] = [];
-      if (isWebSearchEnabled && !conversation.modelSlug.endsWith(":online")) {
-        plugins.push({ id: "web", max_results: webSearchOptions?.maxResults || 5 });
-        console.log("[Chat] Added web search plugin");
-      }
       if (hasPdfAttachments) {
         plugins.push({ id: "file-parser", pdf: { engine: "pdf-text" } });
         console.log("[Chat] Added PDF processing plugin");
       }
       if (plugins.length) requestParams.plugins = plugins;
-
-      if (webSearchOptions?.searchContextSize) {
-        requestParams.web_search_options = { search_context_size: webSearchOptions.searchContextSize };
-      }
 
       console.log("[Chat] Sending request to OpenRouter with usage tracking");
 

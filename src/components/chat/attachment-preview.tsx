@@ -25,7 +25,7 @@ export function AttachmentPreview({
   if (attachment === undefined) {
     console.log("[AttachmentPreview] Loading attachment data...");
     return (
-      <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-3 animate-pulse">
+      <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 animate-pulse">
         <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
         <div className="flex-1">
           <div className="h-4 bg-gray-200 rounded w-32 mb-1"></div>
@@ -38,13 +38,13 @@ export function AttachmentPreview({
   if (attachment === null) {
     console.error("[AttachmentPreview] Attachment not found:", attachmentId);
     return (
-      <div className="flex items-center gap-2 bg-red-50 rounded-lg p-3 border border-red-200">
+      <div className="flex items-center gap-3 bg-red-50 rounded-xl p-3 border border-red-100">
         <X className="w-4 h-4 text-red-500" />
         <span className="text-sm text-red-600">Attachment not found</span>
         {showRemoveButton && (
           <button 
             onClick={onRemove} 
-            className="ml-auto text-red-500 hover:text-red-700"
+            className="ml-auto text-red-500 hover:text-red-700 transition-colors"
             title="Remove attachment"
           >
             <X className="w-4 h-4" />
@@ -87,7 +87,7 @@ export function AttachmentPreview({
     console.log("[AttachmentPreview] Rendering image preview");
     return (
       <div className="relative group">
-        <div className="border rounded-lg overflow-hidden bg-white max-w-xs">
+        <div className="border border-gray-200 rounded-xl overflow-hidden bg-white max-w-xs shadow-sm hover:shadow-md transition-shadow">
           <div className="relative">
             <img 
               src={attachment.url} 
@@ -98,17 +98,17 @@ export function AttachmentPreview({
             />
             
             {/* Overlay controls */}
-            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center gap-2">
               <button
                 onClick={handleView}
-                className="p-2 bg-white/90 rounded-lg hover:bg-white transition-colors"
+                className="p-2 bg-white rounded-xl hover:bg-gray-100 transition-all duration-200 hover:scale-105 active:scale-100"
                 title="View fullscreen"
               >
                 <Eye className="w-4 h-4 text-gray-700" />
               </button>
               <button
                 onClick={handleDownload}
-                className="p-2 bg-white/90 rounded-lg hover:bg-white transition-colors"
+                className="p-2 bg-white rounded-xl hover:bg-gray-100 transition-all duration-200 hover:scale-105 active:scale-100"
                 title="Download"
               >
                 <Download className="w-4 h-4 text-gray-700" />
@@ -116,7 +116,7 @@ export function AttachmentPreview({
               {showRemoveButton && (
                 <button
                   onClick={onRemove}
-                  className="p-2 bg-white/90 rounded-lg hover:bg-white transition-colors"
+                  className="p-2 bg-white rounded-xl hover:bg-red-50 transition-all duration-200 hover:scale-105 active:scale-100"
                   title="Remove"
                 >
                   <X className="w-4 h-4 text-red-500" />
@@ -126,11 +126,11 @@ export function AttachmentPreview({
           </div>
           
           {/* File info */}
-          <div className="p-2 bg-gray-50">
-            <p className="text-xs text-gray-600 truncate" title={attachment.fileName}>
+          <div className="p-3 bg-gray-50 border-t border-gray-100">
+            <p className="text-xs font-medium text-gray-700 truncate" title={attachment.fileName}>
               {attachment.fileName}
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 mt-0.5">
               {formatFileSize(attachment.fileSize)}
             </p>
           </div>
@@ -142,39 +142,39 @@ export function AttachmentPreview({
   // Non-image file preview (PDF, etc.)
   console.log("[AttachmentPreview] Rendering file preview");
   return (
-    <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-3 border border-gray-200 max-w-sm group hover:bg-gray-100 transition-colors">
+    <div className="flex items-center gap-3 bg-white rounded-xl p-3 border border-gray-200 max-w-sm group hover:border-gray-300 hover:shadow-sm transition-all duration-200">
       <div className="flex-shrink-0">
         {isPdf ? (
-          <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-            <FileText className="w-5 h-5 text-red-600" />
+          <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
+            <FileText className="w-5 h-5 text-red-500" />
           </div>
         ) : (
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-            <FileText className="w-5 h-5 text-blue-600" />
+          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+            <FileText className="w-5 h-5 text-blue-500" />
           </div>
         )}
       </div>
       
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate" title={attachment.fileName}>
+        <p className="text-sm font-medium text-gray-800 truncate" title={attachment.fileName}>
           {attachment.fileName}
         </p>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-500 mt-0.5">
           {formatFileSize(attachment.fileSize)}
         </p>
       </div>
       
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <button
           onClick={handleView}
-          className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded transition-colors"
+          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-200"
           title="View file"
         >
           <Eye className="w-4 h-4" />
         </button>
         <button
           onClick={handleDownload}
-          className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded transition-colors"
+          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-200"
           title="Download file"
         >
           <Download className="w-4 h-4" />
@@ -182,7 +182,7 @@ export function AttachmentPreview({
         {showRemoveButton && (
           <button
             onClick={onRemove}
-            className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded transition-colors"
+            className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
             title="Remove attachment"
           >
             <X className="w-4 h-4" />

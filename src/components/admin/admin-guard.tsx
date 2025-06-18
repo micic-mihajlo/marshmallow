@@ -28,9 +28,9 @@ export function AdminGuard({ children }: AdminGuardProps) {
       return;
     }
     
-    // If not authenticated, redirect to sign in
+    // If not authenticated, redirect to home page
     if (!isAuthenticated || !user) {
-      router.push("/sign-in");
+      router.push("/");
       return;
     }
     
