@@ -197,6 +197,19 @@ export default defineSchema({
   .index("by_type", ["quotaType"])
   .index("by_reset_date", ["resetDate"]),
 
+  // User Model Preferences
+  userModelPreferences: defineTable({
+    userId: v.id("users"),
+    modelId: v.id("models"),
+    isEnabled: v.boolean(), // User has enabled this model for their use
+    displayOrder: v.optional(v.number()), // Custom ordering by user
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_user", ["userId"])
+  .index("by_model", ["modelId"])
+  .index("by_user_enabled", ["userId", "isEnabled"]),
+
   systemAlerts: defineTable({
     alertType: v.string(), // "high_usage", "cost_threshold", "error_rate", etc.
     severity: v.string(), // "low", "medium", "high", "critical"

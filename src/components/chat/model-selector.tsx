@@ -14,7 +14,7 @@ interface ModelSelectorProps {
 export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   
-  const enabledModels = useQuery(api.models.getEnabledModels)
+  const enabledModels = useQuery(api.userModelPreferences.getUserEnabledModels)
   
   if (!enabledModels) {
     return (
