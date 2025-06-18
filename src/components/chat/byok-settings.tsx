@@ -6,7 +6,7 @@ import { api } from "../../../convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 
 interface BYOKSettingsProps {
@@ -132,54 +132,73 @@ export function BYOKSettings({ children }: BYOKSettingsProps) {
         {children}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Bring Your Own Key (BYOK)</DialogTitle>
-          <DialogDescription>
-            Configure your own OpenRouter API key for unlimited usage and better privacy.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Current Status</Label>
-              <div className="flex items-center space-x-2">
-                <Switch 
-                  checked={userApiKeyStatus?.useBYOK || false}
-                  onCheckedChange={handleToggleApiKey}
-                  disabled={isLoading}
-                />
-                <span className="text-sm text-gray-600">
-                  {userApiKeyStatus?.useBYOK ? "Using your own API key" : "Using system default"}
-                </span>
-              </div>
-              {userApiKeyStatus?.hasApiKey && !userApiKeyStatus?.useBYOK && (
-                <p className="text-xs text-amber-600">
-                  You have an API key saved but BYOK mode is disabled.
-                </p>
-              )}
-              {!userApiKeyStatus?.hasApiKey && (
-                <p className="text-xs text-gray-500">
-                  Save an API key below to enable BYOK mode.
-                </p>
-              )}
-            </div>
+        <div className="space-y-4">
+          <div>
+            <DialogTitle className="text-lg font-semibold text-gray-900">Bring Your Own Key (BYOK)</DialogTitle>
+            <p className="text-sm text-gray-600 mt-1">
+              Configure your own OpenRouter API key for unlimited usage and better privacy.
+            </p>
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="apiKey">OpenRouter API Key</Label>
-              <Input
-                id="apiKey"
-                type="password"
-                placeholder="sk-or-v1-..."
-                value={apiKey}
-                onChange={(e) => {
-                  setApiKey(e.target.value)
-                  setTestResult(null) // Clear test result when key changes
-                }}
+          <div className="bg-gray-50 rounded-lg p-4 border">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-gray-900">Current Status</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {userApiKeyStatus?.useBYOK ? "Using your own API key" : "Using system default"}
+                </p>
+              </div>
+              <Switch 
+                checked={userApiKeyStatus?.useBYOK || false}
+                onCheckedChange={handleToggleApiKey}
                 disabled={isLoading}
               />
+            </div>
+            {userApiKeyStatus?.hasApiKey && !userApiKeyStatus?.useBYOK && (
+              <p className="text-xs text-amber-600 mt-2">
+                You have an API key saved but BYOK mode is disabled.
+              </p>
+            )}
+            {!userApiKeyStatus?.hasApiKey && (
+              <p className="text-xs text-gray-500 mt-2">
+                Save an API key below to enable BYOK mode.
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="apiKey" className="text-sm font-medium text-gray-700 block mb-2">
+                OpenRouter API Key
+              </Label>
+              <div className="space-y-2">
+                <Input
+                  id="apiKey"
+                  type="password"
+                  placeholder="sk-or-v1-..."
+                  value={apiKey}
+                  onChange={(e) => {
+                    setApiKey(e.target.value)
+                    setTestResult(null) // Clear test result when key changes
+                  }}
+                  disabled={isLoading}
+                  className="bg-white border border-gray-200 rounded-lg"
+                />
+                <p className="text-xs text-gray-500">
+                  Get your API key from{" "}
+                  <a 
+                    href="https://openrouter.ai/keys" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline"
+                  >
+                    OpenRouter Dashboard
+                  </a>
+                </p>
+              </div>
+              
               {testResult && (
-                <div className={`text-xs p-2 rounded ${
+                <div className={`text-xs p-3 rounded-lg mt-2 ${
                   testResult.valid 
                     ? 'bg-green-50 text-green-700 border border-green-200' 
                     : 'bg-red-50 text-red-700 border border-red-200'
@@ -187,48 +206,38 @@ export function BYOKSettings({ children }: BYOKSettingsProps) {
                   {testResult.message}
                 </div>
               )}
-              <p className="text-xs text-gray-500">
-                Get your API key from{" "}
-                <a 
-                  href="https://openrouter.ai/keys" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline"
-                >
-                  OpenRouter Dashboard
-                </a>
-              </p>
             </div>
-          </div>
 
-          <div className="flex space-x-2">
-            <Button 
-              onClick={handleSaveApiKey} 
-              disabled={isLoading || !apiKey.trim()}
-              className="flex-1"
-            >
-              {isLoading ? "Testing & Saving..." : "Save API Key"}
-            </Button>
-            
-            {userApiKeyStatus?.hasApiKey && (
+            <div className="flex gap-3">
               <Button 
-                variant="outline" 
-                onClick={handleRemoveApiKey}
-                disabled={isLoading}
+                onClick={handleSaveApiKey} 
+                disabled={isLoading || !apiKey.trim()}
+                className="flex-1 bg-gray-900 hover:bg-gray-800 text-white rounded-lg"
               >
-                Remove
+                {isLoading ? "Testing & Saving..." : "Save API Key"}
               </Button>
-            )}
-          </div>
+              
+              {userApiKeyStatus?.hasApiKey && (
+                <Button 
+                  variant="outline" 
+                  onClick={handleRemoveApiKey}
+                  disabled={isLoading}
+                  className="rounded-lg border-gray-200 hover:bg-gray-50"
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 mb-2">Benefits of BYOK:</h4>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Unlimited usage based on your OpenRouter account</li>
-              <li>• Direct billing to your OpenRouter account</li>
-              <li>• Enhanced privacy - your API key is encrypted</li>
-              <li>• Access to all OpenRouter models</li>
-            </ul>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-3">Benefits of BYOK:</h4>
+              <ul className="text-sm text-blue-800 space-y-2">
+                <li>• Unlimited usage based on your OpenRouter account</li>
+                <li>• Direct billing to your OpenRouter account</li>
+                <li>• Enhanced privacy - your API key is encrypted</li>
+                <li>• Access to all OpenRouter models</li>
+              </ul>
+            </div>
           </div>
         </div>
       </DialogContent>

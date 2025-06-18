@@ -1,14 +1,15 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Plus, Trash2, Clock, Share2, Link as LinkIcon, Copy, Check } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Plus, Trash2, Clock, Share2, Link as LinkIcon, Copy, Check, Search, X } from "lucide-react"
 
 import { UserButton } from "@clerk/nextjs"
 import Link from "next/link"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Id } from "../../../convex/_generated/dataModel"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useMutation } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
@@ -43,8 +44,20 @@ export function ChatSidebar({
   const [shareLink, setShareLink] = useState<string | null>(null)
   const [isGeneratingLink, setIsGeneratingLink] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
   
   const toggleSharing = useMutation(api.conversations.toggleConversationSharing)
+
+  // Filter conversations based on search query
+  const filteredConversations = useMemo(() => {
+    if (!conversations || !searchQuery.trim()) {
+      return conversations
+    }
+    
+    return conversations.filter(conversation =>
+      conversation.title.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  }, [conversations, searchQuery])
 
   const handleDeleteClick = (e: React.MouseEvent, conversationId: Id<"conversations">) => {
     e.stopPropagation()
@@ -120,10 +133,32 @@ export function ChatSidebar({
         </Button>
       </div>
 
+      {/* Search */}
+      <div className="flex-shrink-0 p-3 border-b border-slate-100">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-10 bg-slate-50 border-slate-200 rounded-xl text-sm focus:bg-white focus:border-slate-300 transition-all"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Conversations List */}
       <div className="flex-1 overflow-auto p-3">
         <div className="space-y-1">
-          {conversations?.map((conversation) => (
+          {filteredConversations?.map((conversation) => (
             <div
               key={conversation._id}
               className="relative group"
@@ -210,7 +245,17 @@ export function ChatSidebar({
           ))}
         </div>
         
-        {(!conversations || conversations.length === 0) && (
+        {searchQuery && filteredConversations?.length === 0 && (
+          <div className="text-center py-12 px-4">
+            <div className="bg-slate-50 rounded-2xl p-8 border border-slate-100">
+              <Search className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+              <p className="text-sm text-slate-600 font-medium mb-1">No conversations found</p>
+              <p className="text-xs text-slate-500">Try a different search term</p>
+            </div>
+          </div>
+        )}
+        
+        {!searchQuery && (!conversations || conversations.length === 0) && (
           <div className="text-center py-12 px-4">
             <div className="bg-slate-50 rounded-2xl p-8 border border-slate-100">
               <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-200">

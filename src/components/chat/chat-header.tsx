@@ -86,13 +86,20 @@ export function ChatHeader({ conversationTitle, onTitleChange }: ChatHeaderProps
         
         <div className="flex items-center gap-2">
           <BYOKSettings>
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
+            <Button 
+              size="sm" 
+              className={`flex items-center gap-2 rounded-lg font-medium transition-all ${
+                userApiKeyStatus?.useBYOK 
+                  ? "bg-gray-900 hover:bg-gray-800 text-white" 
+                  : "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200"
+              }`}
+            >
               <Key className="h-4 w-4" />
               <span className="hidden sm:inline">
                 {userApiKeyStatus?.hasApiKey ? "My API Key" : "Bring Your Own Key"}
               </span>
-              {userApiKeyStatus?.hasApiKey && (
-                <div className="h-2 w-2 bg-green-500 rounded-full" />
+              {userApiKeyStatus?.useBYOK && (
+                <div className="h-2 w-2 bg-green-400 rounded-full" />
               )}
             </Button>
           </BYOKSettings>
