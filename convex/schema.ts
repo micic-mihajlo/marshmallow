@@ -8,6 +8,7 @@ export default defineSchema({
     email: v.string(),
     avatarUrl: v.optional(v.string()),
     apiKey: v.optional(v.string()), // encrypted user's OpenRouter API key
+    useBYOK: v.optional(v.boolean()), // whether user wants to use their own API key
     role: v.optional(v.union(v.literal("admin"), v.literal("user"))), // user role
   }).index("by_clerk_id", ["clerkId"]),
 

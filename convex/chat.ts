@@ -75,7 +75,25 @@ export const sendMessage = action({
     
     // get user for API key and tracking
     const user = await ctx.runQuery(api.users.getCurrentUser);
-    const apiKey = user?.apiKey || process.env.OPENROUTER_API_KEY;
+    
+    let apiKey = process.env.OPENROUTER_API_KEY;
+    
+    // If user has BYOK enabled and has an encrypted API key, decrypt it
+    if (user?.useBYOK && user?.apiKey) {
+      try {
+        apiKey = await ctx.runAction(api.byok.decryptApiKey, {
+          encryptedApiKey: user.apiKey,
+        });
+        console.log("[Chat] Using user's own API key (BYOK enabled)");
+      } catch (error) {
+        console.error("[Chat] Failed to decrypt user API key, falling back to system key:", error);
+        apiKey = process.env.OPENROUTER_API_KEY;
+      }
+    } else if (user?.apiKey && !user?.useBYOK) {
+      console.log("[Chat] User has API key but BYOK is disabled, using system default");
+    } else {
+      console.log("[Chat] Using system default API key");
+    }
     
     if (!apiKey) {
       throw new Error("No API key available. Please set your OpenRouter API key.");
@@ -350,22 +368,63 @@ export const sendMessage = action({
       const endTime = Date.now();
       const processingTime = endTime - startTime;
 
-      console.error("OpenRouter API error:", error);
+      console.error("[Chat] OpenRouter API error:", error);
 
-      // Log failed request
+      // Enhanced logging for different error types
+      let errorMessage = "Unknown error";
+      let statusCode = 500;
+      let isApiKeyError = false;
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Check for API key related errors
+        const errorStr = error.message.toLowerCase();
+        if (errorStr.includes('unauthorized') || 
+            errorStr.includes('invalid api key') || 
+            errorStr.includes('authentication') ||
+            errorStr.includes('401')) {
+          isApiKeyError = true;
+          statusCode = 401;
+          
+          // Determine which key caused the error
+          const keyType = user?.useBYOK && user?.apiKey ? "user's BYOK" : "system default";
+          
+          console.error(`[Chat] API KEY ERROR - ${keyType} key is invalid or unauthorized`);
+          console.error(`[Chat] User ID: ${user._id}, BYOK enabled: ${user?.useBYOK}, Has saved key: ${!!user?.apiKey}`);
+          
+          if (user?.useBYOK && user?.apiKey) {
+            console.error("[Chat] BYOK key failed - user should check their OpenRouter API key");
+            errorMessage = "Your OpenRouter API key appears to be invalid. Please check your key in BYOK settings.";
+          } else {
+            console.error("[Chat] System default key failed - admin should check environment variables");
+            errorMessage = "API authentication failed. Please contact support.";
+          }
+        } else if (errorStr.includes('rate limit') || errorStr.includes('429')) {
+          statusCode = 429;
+          console.error("[Chat] Rate limit exceeded");
+          errorMessage = "Rate limit exceeded. Please try again in a moment.";
+        } else if (errorStr.includes('quota') || errorStr.includes('insufficient')) {
+          statusCode = 402;
+          console.error("[Chat] Quota or credit issue");
+          errorMessage = "API quota exceeded or insufficient credits.";
+        }
+      }
+
+      // Log failed request with enhanced details
       await ctx.runMutation(api.requestLogs.updateRequest, {
         id: requestLogId,
         status: "error",
-        statusCode: (error as any)?.status || 500,
-        errorMessage: (error as any)?.message || "Unknown error",
+        statusCode,
+        errorMessage: isApiKeyError ? `API Key Error: ${errorMessage}` : errorMessage,
         processingTimeMs: processingTime,
       });
       
-      // add error message
+      // Add error message to conversation
       await ctx.runMutation(api.messages.addMessage, {
         conversationId: args.conversationId,
         role: "assistant",
-        content: `Error: ${error instanceof Error ? error.message : "Failed to generate response"}`,
+        content: `Error: ${errorMessage}`,
       });
       
       throw error;
