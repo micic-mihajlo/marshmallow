@@ -28,7 +28,11 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
     id: m._id,
     role: m.role as "user" | "assistant",
     content: m.content,
+    attachments: m.attachments,
   })) || []
+
+  console.log("[ChatView] Transformed", messages.length, "messages, with attachments:", 
+    messages.filter(m => m.attachments && m.attachments.length > 0).length)
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value)
