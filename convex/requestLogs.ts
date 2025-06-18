@@ -62,7 +62,10 @@ export const getRecentRequests = query({
     let query = ctx.db.query("requestLogs").withIndex("by_timestamp").order("desc");
     
     if (args.userId) {
-      query = ctx.db.query("requestLogs").withIndex("by_user", (q) => q.eq("userId", args.userId)).order("desc");
+      query = ctx.db
+        .query("requestLogs")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId!))
+        .order("desc");
     }
 
     const requests = await query.take(args.limit || 100);
@@ -99,7 +102,9 @@ export const getRequestStats = query({
     let query = ctx.db.query("requestLogs").withIndex("by_timestamp");
     
     if (args.userId) {
-      query = ctx.db.query("requestLogs").withIndex("by_user", (q) => q.eq("userId", args.userId));
+      query = ctx.db
+        .query("requestLogs")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId!));
     }
 
     const requests = await query

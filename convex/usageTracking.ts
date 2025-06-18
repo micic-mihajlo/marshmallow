@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
@@ -44,8 +45,8 @@ export const getUserUsageStats = query({
   handler: async (ctx, args) => {
     const usageRecords = await ctx.db
       .query("usageTracking")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .filter((q) => 
+      .withIndex("by_user", (q: any) => q.eq("userId", args.userId))
+      .filter((q: any) => 
         args.startDate && args.endDate
           ? q.and(
               q.gte(q.field("timestamp"), args.startDate),
@@ -115,8 +116,8 @@ export const getSystemUsageStats = query({
   handler: async (ctx, args) => {
     const aggregates = await ctx.db
       .query("usageAggregates")
-      .withIndex("by_period", (q) => q.eq("period", args.period))
-      .filter((q) => q.eq(q.field("userId"), undefined)) // System-wide aggregates
+      .withIndex("by_period", (q: any) => q.eq("period", args.period))
+      .filter((q: any) => q.eq(q.field("userId"), undefined)) // System-wide aggregates
       .order("desc")
       .take(args.limit || 30);
 
@@ -151,10 +152,10 @@ export const getTopUsersByUsage = query({
     
     const userAggregates = await ctx.db
       .query("usageAggregates")
-      .withIndex("by_period", (q) => 
+      .withIndex("by_period", (q: any) => 
         q.eq("period", args.period).eq("periodKey", currentPeriodKey)
       )
-      .filter((q) => q.neq(q.field("userId"), undefined))
+      .filter((q: any) => q.neq(q.field("userId"), undefined))
       .order("desc")
       .take(args.limit || 10);
 
@@ -199,7 +200,7 @@ export const getModelUsageStats = query({
     const usageRecords = await ctx.db
       .query("usageTracking")
       .withIndex("by_timestamp")
-      .filter((q) => q.gte(q.field("timestamp"), startDate))
+      .filter((q: any) => q.gte(q.field("timestamp"), startDate))
       .collect();
 
     // Aggregate by model
@@ -250,7 +251,10 @@ export const getRecentUsageActivity = query({
     let query = ctx.db.query("usageTracking").withIndex("by_timestamp").order("desc");
     
     if (args.userId) {
-      query = ctx.db.query("usageTracking").withIndex("by_user", (q) => q.eq("userId", args.userId)).order("desc");
+      query = ctx.db
+        .query("usageTracking")
+        .withIndex("by_user", (q: any) => q.eq("userId", args.userId!))
+        .order("desc");
     }
 
     const recentUsage = await query.take(args.limit || 50);
@@ -305,7 +309,7 @@ async function updateAggregate(ctx: any, usageData: any, period: string, periodK
   // Update user-specific aggregate
   const userAggregate = await ctx.db
     .query("usageAggregates")
-    .withIndex("by_period", (q) => 
+    .withIndex("by_period", (q: any) => 
       q.eq("period", period).eq("periodKey", periodKey)
     )
     .filter((q: any) => q.eq(q.field("userId"), usageData.userId))
@@ -352,7 +356,7 @@ async function updateAggregate(ctx: any, usageData: any, period: string, periodK
   // Update system-wide aggregate (userId = undefined for system-wide)
   const systemAggregate = await ctx.db
     .query("usageAggregates")
-    .withIndex("by_period", (q) => 
+    .withIndex("by_period", (q: any) => 
       q.eq("period", period).eq("periodKey", periodKey)
     )
     .filter((q: any) => q.eq(q.field("userId"), undefined))
@@ -433,8 +437,8 @@ export const getUserUsageBreakdown = query({
     // Get user's usage records within the time period
     const usageRecords = await ctx.db
       .query("usageTracking")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .filter((q) => q.gte(q.field("timestamp"), startDate))
+      .withIndex("by_user", (q: any) => q.eq("userId", args.userId))
+      .filter((q: any) => q.gte(q.field("timestamp"), startDate))
       .collect();
 
     // Get all models used to determine BYOK requirements
@@ -443,7 +447,7 @@ export const getUserUsageBreakdown = query({
       modelSlugs.map(async (slug) => {
         const model = await ctx.db
           .query("models")
-          .withIndex("by_slug", (q) => q.eq("slug", slug))
+          .withIndex("by_slug", (q: any) => q.eq("slug", slug))
           .first();
         return { slug, requiresBYOK: model?.requiresBYOK || false };
       })
@@ -489,8 +493,8 @@ export const getUserUsageBreakdown = query({
       const date = new Date(Date.now() - (i * 24 * 60 * 60 * 1000));
       const dateKey = date.toISOString().split('T')[0];
       
-      const dayRecords = usageRecords.filter(r => {
-        const recordDate = new Date(r.timestamp).toISOString().split('T')[0];
+      const dayRecords = usageRecords.filter((q: any) => {
+        const recordDate = new Date(q.timestamp).toISOString().split('T')[0];
         return recordDate === dateKey;
       });
 
@@ -499,14 +503,14 @@ export const getUserUsageBreakdown = query({
       let dayBYOKTokens = 0;
       let daySystemTokens = 0;
 
-      dayRecords.forEach(record => {
-        const isBYOKModel = modelBYOKMap[record.modelSlug];
+      dayRecords.forEach((q: any) => {
+        const isBYOKModel = modelBYOKMap[q.modelSlug];
         if (isBYOKModel) {
-          dayBYOKCost += record.costInUSD;
-          dayBYOKTokens += record.totalTokens;
+          dayBYOKCost += q.costInUSD;
+          dayBYOKTokens += q.totalTokens;
         } else {
-          daySystemCost += record.costInUSD;
-          daySystemTokens += record.totalTokens;
+          daySystemCost += q.costInUSD;
+          daySystemTokens += q.totalTokens;
         }
       });
 
@@ -546,7 +550,7 @@ export const fixUsageCosts = mutation({
     // Get all usage records with incorrect costs (very small USD cost but non-zero credits)
     const records = await ctx.db
       .query("usageTracking")
-      .filter((q) => 
+      .filter((q: any) => 
         q.and(
           q.gt(q.field("costInCredits"), 0),
           q.lt(q.field("costInUSD"), 0.001) // Very small USD cost indicates the bug
