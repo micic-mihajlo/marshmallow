@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,27 +25,7 @@ import {
 } from "lucide-react";
 import { Id } from "../../../convex/_generated/dataModel";
 
-interface ModelWithSettings {
-  _id: Id<"models">;
-  name: string;
-  slug: string;
-  provider: string;
-  description?: string;
-  supportsFileUpload: boolean;
-  supportsImageUpload: boolean;
-  supportsVision: boolean;
-  supportsStreaming: boolean;
-  maxTokens?: number;
-  costPer1kTokens?: number;
-  settings: {
-    _id: Id<"modelSettings">;
-    enabled: boolean;
-    allowFileUpload: boolean;
-    allowImageUpload: boolean;
-    allowVision: boolean;
-    allowStreaming: boolean;
-  } | null;
-}
+
 
 export function EnhancedModelsManagement() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,6 +35,7 @@ export function EnhancedModelsManagement() {
 
   const models = useQuery(api.models.getModelsWithSettings);
   const seedModels = useMutation(api.seedModels.seedOpenRouterModels);
+  const seedAllModels = useAction(api.seedModels.seedOpenRouterModelsFromAPI);
   const updateModelSettings = useMutation(api.modelSettings.updateModelSettings);
 
   const handleSeedModels = async (overwrite: boolean = false) => {
@@ -65,6 +46,19 @@ export function EnhancedModelsManagement() {
     } catch (error) {
       console.error("Error seeding models:", error);
       alert("Failed to seed models. Please try again.");
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
+  const handleSeedAllModels = async (overwrite: boolean = false) => {
+    setIsSeeding(true);
+    try {
+      const result = await seedAllModels({ overwrite });
+      alert(result.message);
+    } catch (error) {
+      console.error("Error seeding all models from API:", error);
+      alert("Failed to seed models from OpenRouter API. Please try again.");
     } finally {
       setIsSeeding(false);
     }
@@ -116,7 +110,7 @@ export function EnhancedModelsManagement() {
             Manage AI models available to users with comprehensive controls
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button 
             variant="outline" 
             onClick={() => handleSeedModels(false)}
@@ -127,11 +121,11 @@ export function EnhancedModelsManagement() {
             ) : (
               <RefreshCw className="h-4 w-4 mr-2" />
             )}
-            Seed OpenRouter Models
+            Seed Curated Models
           </Button>
           <Button 
-            variant="outline" 
-            onClick={() => handleSeedModels(true)}
+            variant="default" 
+            onClick={() => handleSeedAllModels(false)}
             disabled={isSeeding}
           >
             {isSeeding ? (
@@ -139,7 +133,19 @@ export function EnhancedModelsManagement() {
             ) : (
               <RefreshCw className="h-4 w-4 mr-2" />
             )}
-            Force Update All
+            Seed All OpenRouter Models (300+)
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => handleSeedAllModels(true)}
+            disabled={isSeeding}
+          >
+            {isSeeding ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Force Update All From API
           </Button>
         </div>
       </div>

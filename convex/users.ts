@@ -175,6 +175,18 @@ export const getCurrentUser = query({
   },
 });
 
+export const getUserByClerkId = query({
+  args: {
+    clerkId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+  },
+});
+
 export const updateApiKey = mutation({
   args: {
     apiKey: v.string(),
