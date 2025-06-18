@@ -31,6 +31,7 @@ export const addMessage = mutation({
     conversationId: v.id("conversations"),
     role: v.union(v.literal("user"), v.literal("assistant")),
     content: v.string(),
+    attachments: v.optional(v.array(v.id("fileAttachments"))),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -54,12 +55,46 @@ export const addMessage = mutation({
       updatedAt: Date.now(),
     });
 
-    return await ctx.db.insert("messages", {
+    console.log("[Messages] Adding message with attachments:", args.attachments?.length || 0);
+
+    // If there are attachments, link them to this message
+    if (args.attachments && args.attachments.length > 0) {
+      console.log("[Messages] Linking attachments to message:", args.attachments);
+      
+      // Update each attachment to reference this message
+      for (const attachmentId of args.attachments) {
+        const attachment = await ctx.db.get(attachmentId);
+        if (attachment && attachment.userId === user._id) {
+          await ctx.db.patch(attachmentId, {
+            messageId: undefined, // We'll set this after creating the message
+          });
+        }
+      }
+    }
+
+    const messageId = await ctx.db.insert("messages", {
       conversationId: args.conversationId,
       role: args.role,
       content: args.content,
       timestamp: Date.now(),
+      attachments: args.attachments,
     });
+
+    // Now update attachments to reference the created message
+    if (args.attachments && args.attachments.length > 0) {
+      console.log("[Messages] Updating attachment references to message:", messageId);
+      for (const attachmentId of args.attachments) {
+        const attachment = await ctx.db.get(attachmentId);
+        if (attachment && attachment.userId === user._id) {
+          await ctx.db.patch(attachmentId, {
+            messageId,
+          });
+        }
+      }
+    }
+
+    console.log("[Messages] Message added successfully:", messageId);
+    return messageId;
   },
 });
 

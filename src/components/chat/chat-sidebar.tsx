@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { MessageSquare, Plus, Trash2, Sparkles, Clock } from "lucide-react"
+
 import { UserButton } from "@clerk/nextjs"
 import Link from "next/link"
 import { cn } from "@/lib/utils"

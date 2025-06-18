@@ -1,55 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import { useQuery } from "convex/react"
+import { api } from "../../../convex/_generated/api"
 import { ChevronDown, Check } from "lucide-react"
 
-const MODELS = [
-  {
-    id: "google/gemini-2.5-flash-preview-05-20",
-    name: "Gemini 2.5 Flash",
-    provider: "Google",
-  },
-  {
-    id: "google/gemini-2.5-flash-preview-05-20:online",
-    name: "Gemini 2.5 Flash + Web",
-    provider: "Google",
-  },
-  {
-    id: "openai/gpt-4.1",
-    name: "GPT-4.1",
-    provider: "OpenAI",
-  },
-  {
-    id: "openai/gpt-4.1:online",
-    name: "GPT-4.1 + Web",
-    provider: "OpenAI",
-  },
-  {
-    id: "openai/gpt-4.1-mini",
-    name: "GPT-4.1 Mini",
-    provider: "OpenAI", 
-  },
-  {
-    id: "openai/gpt-4.1-mini:online",
-    name: "GPT-4.1 Mini + Web",
-    provider: "OpenAI", 
-  },
-  {
-    id: "openai/gpt-4o-search-preview",
-    name: "GPT-4o Search",
-    provider: "OpenAI",
-  },
-  {
-    id: "anthropic/claude-sonnet-4",
-    name: "Claude Sonnet 4",
-    provider: "Anthropic",
-  },
-  {
-    id: "anthropic/claude-sonnet-4:online",
-    name: "Claude Sonnet 4 + Web",
-    provider: "Anthropic",
-  },
-]
 
 interface ModelSelectorProps {
   selectedModel: string
@@ -60,7 +15,31 @@ interface ModelSelectorProps {
 export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   
-  const currentModel = MODELS.find(m => m.id === selectedModel) || MODELS[0]
+  const enabledModels = useQuery(api.userModelPreferences.getUserEnabledModels)
+  
+  if (!enabledModels) {
+    return (
+      <div className="px-3 py-1.5 text-sm text-gray-400">
+        Loading models...
+      </div>
+    )
+  }
+  
+  const models = enabledModels.map(model => ({
+    id: model.slug,
+    name: model.name,
+    provider: model.provider,
+  }))
+  
+  const currentModel = models.find(m => m.id === selectedModel) || models[0]
+  
+  if (!currentModel) {
+    return (
+      <div className="px-3 py-1.5 text-sm text-gray-400">
+        No models available
+      </div>
+    )
+  }
 
   return (
     <div className="relative">
@@ -80,7 +59,7 @@ export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelS
             onClick={() => setIsOpen(false)}
           />
           <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1">
-            {MODELS.map((model) => (
+            {models.map((model) => (
               <button
                 key={model.id}
                 onClick={() => {

@@ -18,15 +18,33 @@ export const createConversation = mutation({
 
     if (!user) throw new Error("User not found");
 
-    // choose model slug: use provided value or fallback to default
-    const modelSlug = args.modelSlug || "google/gemini-2.5-flash-preview-05-20";
+
+    // If no model is specified, use the first enabled model
+    let modelSlug = args.modelSlug;
+    if (!modelSlug) {
+      const enabledSettings = await ctx.db
+        .query("modelSettings")
+        .withIndex("by_enabled", (q) => q.eq("enabled", true))
+        .first();
+      
+      if (enabledSettings) {
+        const model = await ctx.db.get(enabledSettings.modelId);
+        if (model) {
+          modelSlug = model.slug;
+        }
+      }
+      
+      // Fallback to a default model if no enabled models exist
+      modelSlug = modelSlug || "google/gemini-2.5-flash-preview-05-20";
+    }
+
 
     const now = Date.now();
     return await ctx.db.insert("conversations", {
       userId: user._id,
       title: args.title,
       modelSlug,
-      mcpUrl: args.mcpUrl ?? undefined,
+
       createdAt: now,
       updatedAt: now,
     });

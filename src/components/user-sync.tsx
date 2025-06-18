@@ -9,21 +9,16 @@ import { api } from "../../convex/_generated/api"
 export function UserSync() {
   const { isSignedIn } = useAuth()
   const { user } = useUser()
-  const createUser = useMutation(api.users.createUser)
+  const syncUserFromClerk = useMutation(api.users.syncUserFromClerk)
 
   useEffect(() => {
     if (isSignedIn && user) {
-      createUser({
-        clerkId: user.id,
-        name: user.fullName || user.firstName || "Anonymous",
-        email: user.primaryEmailAddress?.emailAddress || "",
-        avatarUrl: user.imageUrl,
-      }).catch((error) => {
-        // User might already exist, which is fine
-        console.log("User sync:", error.message)
+      // Sync user data from Clerk (including role from private metadata)
+      syncUserFromClerk().catch((error) => {
+        console.log("User sync error:", error.message)
       })
     }
-  }, [isSignedIn, user, createUser])
+  }, [isSignedIn, user, syncUserFromClerk])
 
   return null
 } 

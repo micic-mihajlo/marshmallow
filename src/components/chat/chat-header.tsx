@@ -1,6 +1,7 @@
 "use client"
 
 import { Bot, Pencil, X, Check, Globe, Settings } from "lucide-react"
+
 import { useState, useRef, useEffect } from "react"
 import { ModelSelector } from "./model-selector"
 
@@ -103,7 +104,7 @@ export function ChatHeader({ conversationTitle, modelSlug, mcpUrl, webSearchEnab
         </div>
         
         <div className="flex items-center gap-2">
-          {/* settings */}
+
           <a
             href="/settings"
             className="p-2 rounded hover:bg-gray-100 text-gray-500 transition-colors"
@@ -112,7 +113,6 @@ export function ChatHeader({ conversationTitle, modelSlug, mcpUrl, webSearchEnab
             <Settings className="h-4 w-4" />
           </a>
 
-          {/* model selector */}
           {onModelChange && (
             <ModelSelector
               selectedModel={modelSlug || "google/gemini-2.5-flash-preview-05-20"}
@@ -165,6 +165,7 @@ export function ChatHeader({ conversationTitle, modelSlug, mcpUrl, webSearchEnab
               )}
             </div>
           )}
+
         </div>
       </div>
     </div>
