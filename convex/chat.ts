@@ -76,6 +76,30 @@ export const sendMessage = action({
     // get user for API key and tracking
     const user = await ctx.runQuery(api.users.getCurrentUser);
     
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Check if the selected model requires BYOK
+    const modelBYOKCheck = await ctx.runQuery(api.modelSettings.checkModelBYOKRequirement, {
+      modelSlug: conversation.modelSlug,
+    });
+
+    console.log(`[Chat] Model BYOK check for ${conversation.modelSlug}:`, modelBYOKCheck);
+
+    // If model requires BYOK, enforce it
+    if (modelBYOKCheck.requiresBYOK) {
+      if (!user.useBYOK || !user.apiKey) {
+        const errorMessage = `This model (${modelBYOKCheck.modelName || conversation.modelSlug}) requires you to bring your own OpenRouter API key. Please set up BYOK in your settings to use this model.`;
+        console.error("[Chat] BYOK required but not configured:", {
+          modelSlug: conversation.modelSlug,
+          userHasBYOK: user.useBYOK,
+          userHasKey: !!user.apiKey,
+        });
+        throw new Error(errorMessage);
+      }
+    }
+
     let apiKey = process.env.OPENROUTER_API_KEY;
     
     // If user has BYOK enabled and has an encrypted API key, decrypt it
@@ -87,6 +111,10 @@ export const sendMessage = action({
         console.log("[Chat] Using user's own API key (BYOK enabled)");
       } catch (error) {
         console.error("[Chat] Failed to decrypt user API key, falling back to system key:", error);
+        // If model requires BYOK and decryption fails, don't fall back
+        if (modelBYOKCheck.requiresBYOK) {
+          throw new Error("Failed to decrypt your API key. Please check your BYOK settings.");
+        }
         apiKey = process.env.OPENROUTER_API_KEY;
       }
     } else if (user?.apiKey && !user?.useBYOK) {
@@ -97,10 +125,6 @@ export const sendMessage = action({
     
     if (!apiKey) {
       throw new Error("No API key available. Please set your OpenRouter API key.");
-    }
-
-    if (!user) {
-      throw new Error("User not found");
     }
 
     // Log request start
@@ -398,7 +422,12 @@ export const sendMessage = action({
             errorMessage = "Your OpenRouter API key appears to be invalid. Please check your key in BYOK settings.";
           } else {
             console.error("[Chat] System default key failed - admin should check environment variables");
-            errorMessage = "API authentication failed. Please contact support.";
+            // Check if this was a BYOK-required model without proper setup
+            if (modelBYOKCheck.requiresBYOK) {
+              errorMessage = `This model requires BYOK but your API key is invalid. Please check your OpenRouter API key in settings.`;
+            } else {
+              errorMessage = "API authentication failed. Please contact support.";
+            }
           }
         } else if (errorStr.includes('rate limit') || errorStr.includes('429')) {
           statusCode = 429;

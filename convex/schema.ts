@@ -65,10 +65,14 @@ export default defineSchema({
     supportsStreaming: v.boolean(),
     maxTokens: v.optional(v.number()),
     costPer1kTokens: v.optional(v.number()), // in USD
+    requiresBYOK: v.optional(v.boolean()), // whether this model requires user's own API key
+    promptCostPer1M: v.optional(v.number()), // prompt cost per 1M tokens in USD
+    completionCostPer1M: v.optional(v.number()), // completion cost per 1M tokens in USD
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_slug", ["slug"])
-    .index("by_provider", ["provider"]),
+    .index("by_provider", ["provider"])
+    .index("by_byok_required", ["requiresBYOK"]),
 
   modelSettings: defineTable({
     modelId: v.id("models"),

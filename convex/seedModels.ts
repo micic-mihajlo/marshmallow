@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, action } from "./_generated/server";
+import { mutation, action, internalMutation } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -50,6 +50,63 @@ function parsePricing(priceStr: string): number {
   return isNaN(price) ? 0 : price;
 }
 
+// Internal mutation to completely wipe and reseed models table
+export const _wipeAndReseedModels = internalMutation({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    try {
+      console.log("🗑️ Step 1: Deleting all existing models and settings...");
+      
+      // Get all existing models
+      const allModels = await ctx.db.query("models").collect();
+      console.log(`Found ${allModels.length} existing models to delete`);
+      
+      // Delete all model settings first
+      const allSettings = await ctx.db.query("modelSettings").collect();
+      for (const setting of allSettings) {
+        await ctx.db.delete(setting._id);
+      }
+      console.log(`Deleted ${allSettings.length} model settings`);
+      
+      // Delete all models
+      for (const model of allModels) {
+        await ctx.db.delete(model._id);
+      }
+      console.log(`Deleted ${allModels.length} models`);
+      
+      console.log("🌐 Step 2: Fetching fresh models from OpenRouter API...");
+      
+      // Fetch fresh data from OpenRouter API
+      const response = await fetch("https://openrouter.ai/api/v1/models");
+      
+      if (!response.ok) {
+        throw new Error(`OpenRouter API returned ${response.status}: ${response.statusText}`);
+      }
+
+      const data: OpenRouterResponse = await response.json();
+      const models = data.data;
+
+      console.log(`📥 Fetched ${models.length} models from OpenRouter API`);
+
+      // Process and insert all models with BYOK calculations
+      const result = await ctx.runMutation(internal.seedModels._processOpenRouterModels, {
+        models,
+        overwrite: true,
+        userId: args.userId,
+      });
+
+      console.log("✅ Complete wipe and reseed completed successfully!");
+      return result;
+      
+    } catch (error) {
+      console.error("❌ Error during wipe and reseed:", error);
+      throw error;
+    }
+  },
+});
+
 // Helper mutation for processing the fetched models (called internally by the action)
 export const _processOpenRouterModels = mutation({
   args: {
@@ -74,6 +131,13 @@ export const _processOpenRouterModels = mutation({
         const completionPrice = parsePricing(apiModel.pricing?.completion || "0");
         // Average the prompt and completion prices for a general cost estimate
         const costPer1kTokens = (promptPrice + completionPrice) * 1000 / 2;
+        
+        // Calculate costs per 1M tokens for BYOK determination
+        const promptCostPer1M = promptPrice * 1000000;
+        const completionCostPer1M = completionPrice * 1000000;
+        
+        // Determine if model requires BYOK (>$1/1M tokens for either prompt or completion)
+        const requiresBYOK = promptCostPer1M > 1 || completionCostPer1M > 1;
 
         const modelData = {
           name: apiModel.name,
@@ -86,6 +150,9 @@ export const _processOpenRouterModels = mutation({
           supportsStreaming: capabilities.supportsStreaming,
           maxTokens: apiModel.context_length || 4096,
           costPer1kTokens: costPer1kTokens,
+          requiresBYOK: requiresBYOK,
+          promptCostPer1M: promptCostPer1M,
+          completionCostPer1M: completionCostPer1M,
         };
 
         // Check if model already exists
@@ -177,6 +244,47 @@ export const _processOpenRouterModels = mutation({
   },
 });
 
+// Action that completely wipes models table and reseeds with fresh API data
+export const forceUpdateAllModelsFromAPI = action({
+  args: {},
+  handler: async (ctx) => {
+    // Check if user is authenticated and is admin
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Not authenticated");
+    }
+
+    const user = await ctx.runQuery(internal.users.getUserByClerkId, {
+      clerkId: identity.subject,
+    });
+
+    if (!user || user.role !== "admin") {
+      throw new ConvexError("Only admins can force update models");
+    }
+
+    try {
+      console.log("🗑️ Starting complete models table refresh...");
+      
+      // Step 1: Call the wipe and reseed mutation
+      await ctx.runMutation(internal.seedModels._wipeAndReseedModels, {
+        userId: user._id,
+      });
+
+      console.log("🎉 Complete models refresh completed successfully!");
+      
+      return {
+        message: "Successfully performed complete models table refresh with fresh BYOK data",
+        success: true,
+      };
+
+    } catch (error) {
+      console.error("❌ Error during complete models refresh:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      throw new ConvexError(`Failed to refresh models table: ${errorMessage}`);
+    }
+  },
+});
+
 // Action that fetches from OpenRouter API and processes the models
 export const seedOpenRouterModelsFromAPI = action({
   args: {
@@ -242,6 +350,9 @@ const OPENROUTER_MODELS = [
     supportsStreaming: true,
     maxTokens: 128000,
     costPer1kTokens: 0.030,
+    requiresBYOK: true, // Expensive model
+    promptCostPer1M: 30.0,
+    completionCostPer1M: 30.0,
   },
   {
     name: "GPT-4o",
@@ -254,6 +365,9 @@ const OPENROUTER_MODELS = [
     supportsStreaming: true,
     maxTokens: 128000,
     costPer1kTokens: 0.025,
+    requiresBYOK: true, // Expensive model
+    promptCostPer1M: 25.0,
+    completionCostPer1M: 25.0,
   },
   {
     name: "GPT-4o Mini",
@@ -266,6 +380,9 @@ const OPENROUTER_MODELS = [
     supportsStreaming: true,
     maxTokens: 128000,
     costPer1kTokens: 0.001,
+    requiresBYOK: false, // Affordable model
+    promptCostPer1M: 0.15,
+    completionCostPer1M: 0.60,
   },
   {
     name: "Claude 3.5 Sonnet",
@@ -278,6 +395,9 @@ const OPENROUTER_MODELS = [
     supportsStreaming: true,
     maxTokens: 200000,
     costPer1kTokens: 0.015,
+    requiresBYOK: true, // Expensive model
+    promptCostPer1M: 3.0,
+    completionCostPer1M: 15.0,
   },
   {
     name: "Claude 3.5 Haiku",
@@ -290,6 +410,9 @@ const OPENROUTER_MODELS = [
     supportsStreaming: true,
     maxTokens: 200000,
     costPer1kTokens: 0.008,
+    requiresBYOK: false, // Affordable model
+    promptCostPer1M: 1.0,
+    completionCostPer1M: 5.0,
   },
   {
     name: "Gemini 2.0 Flash",
@@ -302,6 +425,9 @@ const OPENROUTER_MODELS = [
     supportsStreaming: true,
     maxTokens: 1048576,
     costPer1kTokens: 0.0075,
+    requiresBYOK: false, // Affordable model
+    promptCostPer1M: 0.075,
+    completionCostPer1M: 0.30,
   },
 ];
 
@@ -350,6 +476,9 @@ export const seedOpenRouterModels = mutation({
             supportsStreaming: modelData.supportsStreaming,
             maxTokens: modelData.maxTokens,
             costPer1kTokens: modelData.costPer1kTokens,
+            requiresBYOK: modelData.requiresBYOK,
+            promptCostPer1M: modelData.promptCostPer1M,
+            completionCostPer1M: modelData.completionCostPer1M,
             updatedAt: now,
           });
 

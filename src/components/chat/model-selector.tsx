@@ -3,7 +3,8 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
-import { ChevronDown, Check } from "lucide-react"
+import { ChevronDown, Check, Key } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
 
 interface ModelSelectorProps {
@@ -17,6 +18,7 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, dropdown
   const [isOpen, setIsOpen] = useState(false)
   
   const enabledModels = useQuery(api.userModelPreferences.getUserEnabledModels)
+  const user = useQuery(api.users.getCurrentUser)
   
   if (!enabledModels) {
     return (
@@ -31,6 +33,20 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, dropdown
     name: model.name,
     provider: model.provider,
   }))
+
+  // Check if user has BYOK configured
+  const hasBYOK = user?.useBYOK && user?.apiKey
+
+  // Helper function to determine if a model likely requires BYOK
+  // This is a simplified check - in production, you'd query the actual model requirements
+  const requiresBYOK = (modelId: string) => {
+    const expensiveModels = [
+      'openai/o1-pro', 'openai/gpt-4.5-preview', 'openai/gpt-4', 'openai/o3-pro',
+      'openai/o1-preview', 'openai/o1', 'anthropic/claude-opus-4', 'anthropic/claude-3-opus'
+    ];
+    return expensiveModels.some(expensive => modelId.includes(expensive.split('/')[1])) ||
+           modelId.includes('gpt-4') || modelId.includes('claude-3-opus') || modelId.includes('o1');
+  }
   
   const currentModel = models.find(m => m.id === selectedModel) || models[0]
   
@@ -50,7 +66,15 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, dropdown
         className="flex items-center justify-between w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed min-w-[160px] focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300"
       >
         <div className="flex flex-col items-start gap-0.5">
-          <span className="font-semibold text-gray-900">{currentModel.name}</span>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-gray-900">{currentModel.name}</span>
+            {requiresBYOK(currentModel.id) && (
+              <Badge variant={hasBYOK ? "default" : "destructive"} className="text-xs px-1.5 py-0.5">
+                <Key className="h-3 w-3 mr-1" />
+                BYOK
+              </Badge>
+            )}
+          </div>
           <span className="text-xs text-gray-600 font-medium">{currentModel.provider}</span>
         </div>
         <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform duration-200 ml-4 ${isOpen ? 'rotate-180' : ''}`} />
@@ -75,7 +99,15 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, dropdown
                 }`}
               >
                 <div className="flex flex-col gap-0.5">
-                  <div className="font-semibold text-gray-900 text-sm group-hover:text-gray-800">{model.name}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="font-semibold text-gray-900 text-sm group-hover:text-gray-800">{model.name}</div>
+                    {requiresBYOK(model.id) && (
+                      <Badge variant={hasBYOK ? "default" : "destructive"} className="text-xs px-1.5 py-0.5">
+                        <Key className="h-3 w-3 mr-1" />
+                        BYOK
+                      </Badge>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-600 font-medium">{model.provider}</div>
                 </div>
                 {model.id === selectedModel && (

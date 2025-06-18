@@ -8,6 +8,7 @@ import { UsageDashboard } from "@/components/admin/usage-dashboard";
 import { AdminLogs } from "@/components/admin/admin-logs";
 import { UserManagement } from "@/components/admin/user-management";
 import { EnhancedModelsManagement } from "@/components/admin/enhanced-models-management";
+import { ModelsCatalogManager } from "@/components/admin/models-catalog";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -30,6 +31,7 @@ export default function AdminPage() {
           <TabsTrigger value="usage">Usage Monitoring</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="models">Models</TabsTrigger>
+          <TabsTrigger value="catalog">Models Catalog</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
         </TabsList>
 
@@ -47,6 +49,10 @@ export default function AdminPage() {
 
         <TabsContent value="models" className="space-y-4">
           <EnhancedModelsManagement />
+        </TabsContent>
+
+        <TabsContent value="catalog" className="space-y-4">
+          <ModelsCatalogManager />
         </TabsContent>
 
         <TabsContent value="logs" className="space-y-4">
