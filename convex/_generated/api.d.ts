@@ -25,6 +25,7 @@ import type * as requestLogs from "../requestLogs.js";
 import type * as seedModels from "../seedModels.js";
 import type * as systemAlerts from "../systemAlerts.js";
 import type * as usageTracking from "../usageTracking.js";
+import type * as userModelPreferences from "../userModelPreferences.js";
 import type * as users from "../users.js";
 
 /**
@@ -48,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   seedModels: typeof seedModels;
   systemAlerts: typeof systemAlerts;
   usageTracking: typeof usageTracking;
+  userModelPreferences: typeof userModelPreferences;
   users: typeof users;
 }>;
 export declare const api: FilterApi<

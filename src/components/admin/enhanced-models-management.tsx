@@ -3,13 +3,12 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Search, 
   Settings, 
@@ -82,31 +81,7 @@ export function EnhancedModelsManagement() {
     }
   };
 
-  // Group models by provider
-  const groupedModels = useMemo(() => {
-    if (!models) return {};
 
-    const filtered = models.filter((model) => {
-      const matchesSearch = 
-        model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        model.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        model.provider.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesProvider = selectedProvider === "all" || model.provider === selectedProvider;
-      const matchesEnabled = !showEnabledOnly || model.settings?.enabled;
-
-      return matchesSearch && matchesProvider && matchesEnabled;
-    });
-
-    return filtered.reduce((acc, model) => {
-      const provider = model.provider;
-      if (!acc[provider]) {
-        acc[provider] = [];
-      }
-      acc[provider].push(model);
-      return acc;
-    }, {} as Record<string, ModelWithSettings[]>);
-  }, [models, searchQuery, selectedProvider, showEnabledOnly]);
 
   const providers = useMemo(() => {
     if (!models) return [];
@@ -248,20 +223,23 @@ export function EnhancedModelsManagement() {
         </CardContent>
       </Card>
 
-      {/* Models by Provider */}
-      <Tabs defaultValue={providers[0] || "all"} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6 lg:grid-cols-8">
-          {providers.slice(0, 8).map((provider) => (
-            <TabsTrigger key={provider} value={provider} className="text-xs">
-              {provider.charAt(0).toUpperCase() + provider.slice(1)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      {/* Models List */}
+      <div className="space-y-4">
+        {models && models.length > 0 ? (
+          <div className="grid gap-4">
+            {models
+              .filter((model) => {
+                const matchesSearch = 
+                  model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  model.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  model.provider.toLowerCase().includes(searchQuery.toLowerCase());
+                
+                const matchesProvider = selectedProvider === "all" || model.provider === selectedProvider;
+                const matchesEnabled = !showEnabledOnly || model.settings?.enabled;
 
-        {providers.map((provider) => (
-          <TabsContent key={provider} value={provider} className="space-y-4">
-            <div className="grid gap-4">
-              {groupedModels[provider]?.map((model) => (
+                return matchesSearch && matchesProvider && matchesEnabled;
+              })
+              .map((model) => (
                 <Card key={model._id} className="transition-all hover:shadow-md">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
@@ -283,6 +261,9 @@ export function EnhancedModelsManagement() {
                               {model.slug}
                             </p>
                           </div>
+                          <Badge variant="outline" className="text-xs">
+                            {model.provider.charAt(0).toUpperCase() + model.provider.slice(1)}
+                          </Badge>
                           <Badge variant={model.settings?.enabled ? "default" : "secondary"}>
                             {model.settings?.enabled ? "Enabled" : "Disabled"}
                           </Badge>
@@ -344,29 +325,22 @@ export function EnhancedModelsManagement() {
                     </div>
                   </CardContent>
                 </Card>
-              )) || (
-                <div className="text-center py-8 text-muted-foreground">
-                  No models found for {provider}
-                </div>
-              )}
-            </div>
-          </TabsContent>
-        ))}
-      </Tabs>
-
-      {Object.keys(groupedModels).length === 0 && (
-        <Card>
-          <CardContent className="py-8">
-            <div className="text-center text-muted-foreground">
-              <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">No models found</p>
-              <p className="text-sm">
-                Try adjusting your search criteria or seed some models to get started.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="py-8">
+              <div className="text-center text-muted-foreground">
+                <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">No models found</p>
+                <p className="text-sm">
+                  Try adjusting your search criteria or seed some models to get started.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 } 

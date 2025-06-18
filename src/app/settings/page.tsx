@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Settings, 
   Eye, 
@@ -19,7 +19,9 @@ import {
   Loader2,
   Save,
   RotateCcw,
-  CheckCircle
+  CheckCircle,
+  Search,
+  Filter
 } from "lucide-react";
 import { Id } from "../../../convex/_generated/dataModel";
 
@@ -33,13 +35,16 @@ export default function SettingsPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [preferences, setPreferences] = useState<ModelPreference[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedProvider, setSelectedProvider] = useState("all");
+  const [showEnabledOnly, setShowEnabledOnly] = useState(false);
 
-  const modelPreferences = useQuery(api.userModelPreferences.getUserModelPreferences);
+  const modelPreferences = useQuery(api.userModelPreferences.getUserModelPreferences, {});
   const updatePreferences = useMutation(api.userModelPreferences.updateUserModelPreferences);
   const resetPreferences = useMutation(api.userModelPreferences.resetUserModelPreferences);
 
   // Initialize preferences when data loads
-  useState(() => {
+  useEffect(() => {
     if (modelPreferences && preferences.length === 0) {
       const initialPrefs = modelPreferences.map(model => ({
         modelId: model._id,
@@ -48,7 +53,7 @@ export default function SettingsPage() {
       }));
       setPreferences(initialPrefs);
     }
-  });
+  }, [modelPreferences, preferences.length]);
 
   const handleToggleModel = (modelId: Id<"models">, enabled: boolean) => {
     setPreferences(prev => {
@@ -105,17 +110,8 @@ export default function SettingsPage() {
     }
   };
 
-  // Group models by provider
-  const groupedModels = modelPreferences?.reduce((acc, model) => {
-    const provider = model.provider;
-    if (!acc[provider]) {
-      acc[provider] = [];
-    }
-    acc[provider].push(model);
-    return acc;
-  }, {} as Record<string, typeof modelPreferences>) || {};
-
-  const providers = Object.keys(groupedModels).sort();
+  // Get unique providers
+  const providers = Array.from(new Set(modelPreferences?.map(model => model.provider) || [])).sort();
 
   const stats = {
     total: modelPreferences?.length || 0,
@@ -187,7 +183,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Providers</CardTitle>
-            <Settings className="h-4 w-4 text-muted-foreground" />
+            <Filter className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.providers}</div>
@@ -219,20 +215,74 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      {/* Models by Provider */}
-      <Tabs defaultValue={providers[0] || "all"} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6 lg:grid-cols-8">
-          {providers.slice(0, 8).map((provider) => (
-            <TabsTrigger key={provider} value={provider} className="text-xs">
-              {provider.charAt(0).toUpperCase() + provider.slice(1)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Filters & Search</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search models by name, slug, or provider..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="min-w-[150px]">
+                <select
+                  value={selectedProvider}
+                  onChange={(e) => setSelectedProvider(e.target.value)}
+                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:ring-2 focus:ring-ring focus:outline-none"
+                >
+                  <option value="all">All Providers</option>
+                  {providers.map((provider) => (
+                    <option key={provider} value={provider}>
+                      {provider.charAt(0).toUpperCase() + provider.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="enabled-only"
+                  checked={showEnabledOnly}
+                  onCheckedChange={setShowEnabledOnly}
+                />
+                <Label htmlFor="enabled-only" className="text-sm">
+                  Enabled Only
+                </Label>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        {providers.map((provider) => (
-          <TabsContent key={provider} value={provider} className="space-y-4">
-            <div className="grid gap-4">
-              {groupedModels[provider]?.map((model) => {
+      {/* Models List */}
+      <div className="space-y-4">
+        {modelPreferences && modelPreferences.length > 0 ? (
+          <div className="grid gap-4">
+            {modelPreferences
+              .filter((model) => {
+                const matchesSearch = 
+                  model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  model.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  model.provider.toLowerCase().includes(searchQuery.toLowerCase());
+                
+                const matchesProvider = selectedProvider === "all" || model.provider === selectedProvider;
+                
+                const userPref = preferences.find(p => p.modelId === model._id);
+                const isEnabled = userPref?.isEnabled ?? model.userEnabled;
+                const matchesEnabled = !showEnabledOnly || isEnabled;
+
+                return matchesSearch && matchesProvider && matchesEnabled;
+              })
+              .map((model) => {
                 const userPref = preferences.find(p => p.modelId === model._id);
                 const isEnabled = userPref?.isEnabled ?? model.userEnabled;
 
@@ -258,6 +308,9 @@ export default function SettingsPage() {
                                 {model.slug}
                               </p>
                             </div>
+                            <Badge variant="outline" className="text-xs">
+                              {model.provider.charAt(0).toUpperCase() + model.provider.slice(1)}
+                            </Badge>
                             <Badge variant={isEnabled ? "default" : "secondary"}>
                               {isEnabled ? "Enabled" : "Disabled"}
                             </Badge>
@@ -320,29 +373,22 @@ export default function SettingsPage() {
                     </CardContent>
                   </Card>
                 );
-              }) || (
-                <div className="text-center py-8 text-muted-foreground">
-                  No models found for {provider}
-                </div>
-              )}
-            </div>
-          </TabsContent>
-        ))}
-      </Tabs>
-
-      {modelPreferences.length === 0 && (
-        <Card>
-          <CardContent className="py-8">
-            <div className="text-center text-muted-foreground">
-              <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">No models available</p>
-              <p className="text-sm">
-                Contact your administrator to enable models for use.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              })}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="py-8">
+              <div className="text-center text-muted-foreground">
+                <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">No models available</p>
+                <p className="text-sm">
+                  Contact your administrator to enable models for use.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 } 
