@@ -137,12 +137,35 @@ export const sendMessage = action({
                       },
                     });
                   } else if (attachment.fileType === 'application/pdf') {
-                    // For PDFs, we need to fetch and encode as base64
-                    // Note: This is a simplified version - in practice you'd want to
-                    // fetch the file content and convert to base64
-                    console.log("[Chat] PDF attachment detected - URL:", attachment.url);
-                    // For now, we'll just mention the file in text
-                    attachmentContents[0].text += `\n\nAttached PDF file: ${attachment.fileName}`;
+                    // For PDFs, fetch content and encode as base64
+                    console.log("[Chat] PDF attachment detected - fetching and encoding:", attachment.fileName);
+                    
+                    try {
+                      // Fetch the PDF content from Convex storage
+                      const pdfResponse = await fetch(attachment.url);
+                      if (pdfResponse.ok) {
+                        const pdfBuffer = await pdfResponse.arrayBuffer();
+                        const base64Pdf = Buffer.from(pdfBuffer).toString('base64');
+                        const dataUrl = `data:application/pdf;base64,${base64Pdf}`;
+                        
+                        // Add PDF in OpenRouter's required format
+                        attachmentContents.push({
+                          type: "file",
+                          file: {
+                            filename: attachment.fileName,
+                            file_data: dataUrl,
+                          },
+                        });
+                        
+                        console.log("[Chat] PDF encoded successfully:", attachment.fileName);
+                      } else {
+                        console.error("[Chat] Failed to fetch PDF:", pdfResponse.status);
+                        attachmentContents[0].text += `\n\nAttached PDF file: ${attachment.fileName} (encoding failed)`;
+                      }
+                    } catch (error) {
+                      console.error("[Chat] Error encoding PDF:", error);
+                      attachmentContents[0].text += `\n\nAttached PDF file: ${attachment.fileName} (encoding error)`;
+                    }
                   }
                 }
               } catch (error) {
@@ -162,13 +185,41 @@ export const sendMessage = action({
 
       console.log("[Chat] Formatted", formattedMessages.length, "messages for OpenRouter");
 
-      // stream response from OpenRouter
-      const stream = await openai.chat.completions.create({
+      // Check if we have PDF attachments to configure PDF processing
+      const hasPdfAttachments = recentMessages.some(msg => 
+        msg.attachments && msg.attachments.some(async (attachmentId) => {
+          const attachment = await ctx.runQuery(api.fileStorage.getFileAttachment, {
+            attachmentId,
+          });
+          return attachment?.fileType === 'application/pdf';
+        })
+      );
+
+      console.log("[Chat] Has PDF attachments:", hasPdfAttachments);
+
+      // Configure request with optional PDF processing
+      const requestConfig: any = {
         model: conversation.modelSlug,
         messages: formattedMessages,
         stream: true,
         max_tokens: 2000,
-      });
+      };
+
+      // Add PDF processing plugin if we have PDF attachments
+      if (hasPdfAttachments) {
+        requestConfig.plugins = [
+          {
+            id: "file-parser",
+            pdf: {
+              engine: "pdf-text", // Free option - you can change to "mistral-ocr" for better OCR
+            },
+          },
+        ];
+        console.log("[Chat] Added PDF processing plugin");
+      }
+
+      // stream response from OpenRouter
+      const stream = await openai.chat.completions.create(requestConfig);
 
       let fullContent = "";
       
