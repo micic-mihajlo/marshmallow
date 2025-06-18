@@ -418,4 +418,121 @@ function getStartDateForPeriod(period: string): number {
     default:
       return now.getTime() - (7 * 24 * 60 * 60 * 1000); // Default to 7 days
   }
-} 
+}
+
+// Get user usage breakdown by BYOK vs System funding
+export const getUserUsageBreakdown = query({
+  args: {
+    userId: v.id("users"),
+    days: v.optional(v.number()), // Number of days to look back (default: 30)
+  },
+  handler: async (ctx, args) => {
+    const daysBack = args.days || 30;
+    const startDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
+
+    // Get user's usage records within the time period
+    const usageRecords = await ctx.db
+      .query("usageTracking")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.gte(q.field("timestamp"), startDate))
+      .collect();
+
+    // Get all models used to determine BYOK requirements
+    const modelSlugs = Array.from(new Set(usageRecords.map(r => r.modelSlug)));
+    const models = await Promise.all(
+      modelSlugs.map(async (slug) => {
+        const model = await ctx.db
+          .query("models")
+          .withIndex("by_slug", (q) => q.eq("slug", slug))
+          .first();
+        return { slug, requiresBYOK: model?.requiresBYOK || false };
+      })
+    );
+
+    const modelBYOKMap = Object.fromEntries(models.map(m => [m.slug, m.requiresBYOK]));
+
+    // Categorize usage by BYOK vs System
+    const byokUsage = {
+      totalTokens: 0,
+      totalCost: 0,
+      requestCount: 0,
+      models: {} as Record<string, { tokens: number; cost: number; count: number }>
+    };
+
+    const systemUsage = {
+      totalTokens: 0,
+      totalCost: 0,
+      requestCount: 0,
+      models: {} as Record<string, { tokens: number; cost: number; count: number }>
+    };
+
+    // Process each usage record
+    usageRecords.forEach(record => {
+      const isBYOKModel = modelBYOKMap[record.modelSlug];
+      const target = isBYOKModel ? byokUsage : systemUsage;
+
+      target.totalTokens += record.totalTokens;
+      target.totalCost += record.costInUSD;
+      target.requestCount += 1;
+
+      if (!target.models[record.modelSlug]) {
+        target.models[record.modelSlug] = { tokens: 0, cost: 0, count: 0 };
+      }
+      target.models[record.modelSlug].tokens += record.totalTokens;
+      target.models[record.modelSlug].cost += record.costInUSD;
+      target.models[record.modelSlug].count += 1;
+    });
+
+    // Generate daily usage for chart
+    const dailyUsage = [];
+    for (let i = daysBack - 1; i >= 0; i--) {
+      const date = new Date(Date.now() - (i * 24 * 60 * 60 * 1000));
+      const dateKey = date.toISOString().split('T')[0];
+      
+      const dayRecords = usageRecords.filter(r => {
+        const recordDate = new Date(r.timestamp).toISOString().split('T')[0];
+        return recordDate === dateKey;
+      });
+
+      let dayBYOKCost = 0;
+      let daySystemCost = 0;
+      let dayBYOKTokens = 0;
+      let daySystemTokens = 0;
+
+      dayRecords.forEach(record => {
+        const isBYOKModel = modelBYOKMap[record.modelSlug];
+        if (isBYOKModel) {
+          dayBYOKCost += record.costInUSD;
+          dayBYOKTokens += record.totalTokens;
+        } else {
+          daySystemCost += record.costInUSD;
+          daySystemTokens += record.totalTokens;
+        }
+      });
+
+      dailyUsage.push({
+        date: dateKey,
+        byokCost: dayBYOKCost,
+        systemCost: daySystemCost,
+        byokTokens: dayBYOKTokens,
+        systemTokens: daySystemTokens,
+        totalCost: dayBYOKCost + daySystemCost,
+        totalTokens: dayBYOKTokens + daySystemTokens,
+      });
+    }
+
+    return {
+      period: `${daysBack} days`,
+      startDate,
+      endDate: Date.now(),
+      byokUsage,
+      systemUsage,
+      totalUsage: {
+        totalTokens: byokUsage.totalTokens + systemUsage.totalTokens,
+        totalCost: byokUsage.totalCost + systemUsage.totalCost,
+        requestCount: byokUsage.requestCount + systemUsage.requestCount,
+      },
+      dailyUsage,
+    };
+  },
+}); 

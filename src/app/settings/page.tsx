@@ -22,9 +22,14 @@ import {
   RotateCcw,
   CheckCircle,
   Search,
-  Filter
+  Filter,
+  BarChart3,
+  ArrowLeft
 } from "lucide-react";
 import { Id } from "../../../convex/_generated/dataModel";
+import { UsageDashboard } from "@/components/chat/usage-dashboard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Link from "next/link";
 
 interface ModelPreference {
   modelId: Id<"models">;
@@ -136,34 +141,66 @@ export default function SettingsPage() {
     <div className="container mx-auto py-8 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Model Preferences</h1>
-          <p className="text-muted-foreground">
-            Choose which AI models you want to use in your conversations
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={handleResetPreferences}
-            disabled={isSaving}
-          >
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Reset to Default
-          </Button>
-          <Button 
-            onClick={handleSavePreferences}
-            disabled={!hasChanges || isSaving}
-          >
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            Save Preferences
-          </Button>
+        <div className="flex items-center gap-4">
+          <Link href="/chat">
+            <Button variant="ghost" size="sm" className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Chat
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+            <p className="text-muted-foreground">
+              Manage your model preferences and track your usage
+            </p>
+          </div>
         </div>
       </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="models" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="models" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Model Preferences
+          </TabsTrigger>
+          <TabsTrigger value="usage" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Usage Analytics
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="models" className="space-y-6">
+          {/* Model Preferences Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Model Preferences</h2>
+              <p className="text-muted-foreground">
+                Choose which AI models you want to use in your conversations
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={handleResetPreferences}
+                disabled={isSaving}
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset to Default
+              </Button>
+              <Button 
+                onClick={handleSavePreferences}
+                disabled={!hasChanges || isSaving}
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Save Preferences
+              </Button>
+            </div>
+          </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -394,6 +431,12 @@ export default function SettingsPage() {
           </Card>
         )}
       </div>
+        </TabsContent>
+
+        <TabsContent value="usage" className="space-y-6">
+          <UsageDashboard days={30} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 } 
