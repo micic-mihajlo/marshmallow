@@ -3,6 +3,8 @@
 import { Button } from "@/components/ui/button"
 import { Send } from "lucide-react"
 import { useRef, KeyboardEvent, useState } from "react"
+import { useMutation } from "convex/react"
+import { api } from "../../../convex/_generated/api"
 import { FileUpload } from "./file-upload"
 import { AttachmentPreview } from "./attachment-preview"
 import { GlobalDropZone } from "./global-drop-zone"
@@ -26,6 +28,10 @@ export function ChatInput({
   const inputRef = useRef<HTMLInputElement>(null)
   const [attachments, setAttachments] = useState<Id<"fileAttachments">[]>([])
   const [uploadError, setUploadError] = useState<string | null>(null)
+  
+  // Add mutations for direct file upload
+  const generateUploadUrl = useMutation(api.fileStorage.generateUploadUrl)
+  const storeFileMetadata = useMutation(api.fileStorage.storeFileMetadata)
 
   console.log("[ChatInput] Rendering with", attachments.length, "attachments")
 
@@ -61,9 +67,77 @@ export function ChatInput({
 
   const handleGlobalFilesDropped = (files: File[]) => {
     console.log("[ChatInput] Global files dropped:", files.length, "files")
-    // We can't directly handle the files here, so we'll just show an info message
-    // The FileUpload component will handle the actual upload
-    setUploadError("Please use the attachment button to upload files or drag them directly to the attachment area.")
+    
+    // Process each dropped file using the same logic as FileUpload component
+    files.forEach(async (file) => {
+      console.log("[ChatInput] Processing globally dropped file:", file.name, file.type, file.size)
+      
+      // Validate file size and type (same as FileUpload component)
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+      const ALLOWED_TYPES = [
+        "image/jpeg",
+        "image/png", 
+        "image/gif",
+        "image/webp",
+        "application/pdf",
+      ];
+
+      if (file.size > MAX_FILE_SIZE) {
+        const error = `File "${file.name}" is too large. Maximum size is 10MB.`;
+        console.error("[ChatInput] File too large:", error);
+        setUploadError(error);
+        return;
+      }
+
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        const error = `File type "${file.type}" is not supported. Only images (JPEG, PNG, GIF, WebP) and PDFs are allowed.`;
+        console.error("[ChatInput] Invalid file type:", error);
+        setUploadError(error);
+        return;
+      }
+
+             // If validation passes, upload the file directly
+       try {
+         console.log("[ChatInput] Starting upload for globally dropped file:", file.name);
+         
+         // Get upload URL from Convex
+         const uploadUrl = await generateUploadUrl();
+         console.log("[ChatInput] Upload URL generated for global drop");
+         
+         // Upload file to Convex storage
+         const result = await fetch(uploadUrl, {
+           method: "POST",
+           headers: { "Content-Type": file.type },
+           body: file,
+         });
+
+         if (!result.ok) {
+           const errorText = await result.text();
+           console.error("[ChatInput] Upload failed:", result.status, errorText);
+           throw new Error(`Upload failed: ${result.status} ${errorText}`);
+         }
+         
+         const { storageId } = await result.json();
+         console.log("[ChatInput] Global drop file uploaded successfully, storage ID:", storageId);
+         
+         // Store file metadata
+         const attachmentId = await storeFileMetadata({
+           storageId,
+           fileName: file.name,
+           fileType: file.type,
+           fileSize: file.size,
+           conversationId,
+         });
+
+         console.log("[ChatInput] Global drop file upload completed successfully:", attachmentId);
+         handleFileUploaded(attachmentId);
+         
+       } catch (error) {
+         console.error("[ChatInput] Error processing globally dropped file:", error);
+         const errorMessage = error instanceof Error ? error.message : `Failed to process file "${file.name}"`;
+         setUploadError(errorMessage);
+       }
+    });
   }
 
   return (
