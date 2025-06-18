@@ -10,8 +10,18 @@ const MODELS = [
     provider: "Google",
   },
   {
+    id: "google/gemini-2.5-flash-preview-05-20:online",
+    name: "Gemini 2.5 Flash + Web",
+    provider: "Google",
+  },
+  {
     id: "openai/gpt-4.1",
     name: "GPT-4.1",
+    provider: "OpenAI",
+  },
+  {
+    id: "openai/gpt-4.1:online",
+    name: "GPT-4.1 + Web",
     provider: "OpenAI",
   },
   {
@@ -20,8 +30,23 @@ const MODELS = [
     provider: "OpenAI", 
   },
   {
+    id: "openai/gpt-4.1-mini:online",
+    name: "GPT-4.1 Mini + Web",
+    provider: "OpenAI", 
+  },
+  {
+    id: "openai/gpt-4o-search-preview",
+    name: "GPT-4o Search",
+    provider: "OpenAI",
+  },
+  {
     id: "anthropic/claude-sonnet-4",
     name: "Claude Sonnet 4",
+    provider: "Anthropic",
+  },
+  {
+    id: "anthropic/claude-sonnet-4:online",
+    name: "Claude Sonnet 4 + Web",
     provider: "Anthropic",
   },
 ]

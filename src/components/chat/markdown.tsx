@@ -8,7 +8,7 @@ import rehypeKatex from "rehype-katex"
 import rehypeRaw from "rehype-raw"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
-import { Check, Copy } from "lucide-react"
+import { Check, Copy, ExternalLink } from "lucide-react"
 import { useState } from "react"
 import "katex/dist/katex.min.css"
 
@@ -209,6 +209,15 @@ const minimalComponents: any = {
 
 export const MemoizedMarkdown = memo(
   ({ content }: { content: string; id: string }) => {
+    // Extract citations from content if present
+    const citationRegex = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g
+    const citations: Array<{ text: string; url: string }> = []
+    let match
+    
+    while ((match = citationRegex.exec(content)) !== null) {
+      citations.push({ text: match[1], url: match[2] })
+    }
+
     // transform any <think> tags before further processing
     const transformedContent = formatChainOfThought(content)
     const isPureInline = isPureInlineContent(transformedContent)
@@ -249,14 +258,50 @@ export const MemoizedMarkdown = memo(
     
     // for full markdown content, use full styling
     return (
-      <div className="prose-sm max-w-none">
+      <div className="prose prose-sm max-w-none text-gray-800 prose-headings:text-gray-900 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-code:text-orange-600 prose-code:bg-orange-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-blockquote:border-l-gray-300 prose-blockquote:text-gray-600">
         <ReactMarkdown
-          components={components}
           remarkPlugins={[remarkGfm, remarkMath]}
           rehypePlugins={[rehypeKatex, rehypeRaw]}
+          components={{
+            code({ node, inline, className, children, ...props }) {
+              const match = /language-(\w+)/.exec(className || "")
+              const language = match ? match[1] : ""
+
+              if (!inline && language) {
+                return (
+                  <CodeBlock language={language} code={String(children).replace(/\n$/, "")} />
+                )
+              }
+              return (
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              )
+            },
+          }}
         >
           {transformedContent}
         </ReactMarkdown>
+        
+        {citations.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-gray-200">
+            <div className="text-xs text-gray-500 font-medium mb-2">Sources:</div>
+            <div className="flex flex-wrap gap-2">
+              {citations.map((citation, index) => (
+                <a
+                  key={index}
+                  href={citation.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs hover:bg-blue-100 transition-colors"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  {citation.text}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     )
   },

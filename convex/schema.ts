@@ -15,6 +15,11 @@ export default defineSchema({
     title: v.string(),
     modelSlug: v.string(), // e.g., "anthropic/claude-3-haiku"
     mcpUrl: v.optional(v.string()), // optional MCP server URL
+    webSearchEnabled: v.optional(v.boolean()), // whether web search is enabled
+    webSearchOptions: v.optional(v.object({
+      maxResults: v.optional(v.number()),
+      searchContextSize: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),
+    })),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),

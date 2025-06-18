@@ -103,15 +103,37 @@ export const sendMessage = action({
         content: msg.content,
       }));
 
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore - openrouter supports the reasoning param, not yet in openai typings
-      const stream = await openai.chat.completions.create({
+      // check if web search is enabled or model has :online suffix
+      const isWebSearchEnabled = conversation.webSearchEnabled || conversation.modelSlug.endsWith(":online");
+      const webSearchOptions = conversation.webSearchOptions;
+
+      // prepare request parameters
+      const requestParams: any = {
         model: conversation.modelSlug,
         messages: formattedMessages,
         stream: true,
         max_tokens: 2000,
         reasoning: { effort: "high" }, // enable reasoning tokens per OpenRouter docs
-      });
+      };
+
+      // add web search if enabled and not using :online suffix
+      if (isWebSearchEnabled && !conversation.modelSlug.endsWith(":online")) {
+        requestParams.plugins = [{
+          id: "web",
+          max_results: webSearchOptions?.maxResults || 5,
+        }];
+      }
+
+      // add web search options for native search models
+      if (webSearchOptions?.searchContextSize) {
+        requestParams.web_search_options = {
+          search_context_size: webSearchOptions.searchContextSize,
+        };
+      }
+
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore - openrouter supports the reasoning param, not yet in openai typings
+      const stream = await openai.chat.completions.create(requestParams);
 
       let fullContent = "";
       let inReasoning = false;

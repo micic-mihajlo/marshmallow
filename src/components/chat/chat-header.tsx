@@ -1,6 +1,6 @@
 "use client"
 
-import { Bot, Pencil, X, Check } from "lucide-react"
+import { Bot, Pencil, X, Check, Globe, Settings } from "lucide-react"
 import { useState, useRef, useEffect } from "react"
 import { ModelSelector } from "./model-selector"
 
@@ -8,14 +8,19 @@ interface ChatHeaderProps {
   conversationTitle?: string
   modelSlug?: string
   mcpUrl?: string
+  webSearchEnabled?: boolean
+  webSearchOptions?: {
+    maxResults?: number
+    searchContextSize?: "low" | "medium" | "high"
+  }
   onModelChange?: (modelId: string) => void
   onTitleChange?: (title: string) => void
   onMcpUrlChange?: (url: string) => void
+  onWebSearchChange?: (enabled: boolean, options?: { maxResults?: number; searchContextSize?: "low" | "medium" | "high" }) => void
   isLoading?: boolean
-
 }
 
-export function ChatHeader({ conversationTitle, modelSlug, mcpUrl, onModelChange, onTitleChange, onMcpUrlChange, isLoading }: ChatHeaderProps) {
+export function ChatHeader({ conversationTitle, modelSlug, mcpUrl, webSearchEnabled, webSearchOptions, onModelChange, onTitleChange, onMcpUrlChange, onWebSearchChange, isLoading }: ChatHeaderProps) {
   const [editing, setEditing] = useState(false)
   const [mcpEditing, setMcpEditing] = useState(false)
   const [titleDraft, setTitleDraft] = useState(conversationTitle || "")
@@ -125,6 +130,27 @@ export function ChatHeader({ conversationTitle, modelSlug, mcpUrl, onModelChange
               {mcpUrl ? "Edit MCP" : "Add MCP"}
             </button>
           )
+        )}
+
+        {onWebSearchChange && (
+          <div className="flex items-center gap-2 ml-4">
+            <button
+              onClick={() => onWebSearchChange(!webSearchEnabled, webSearchOptions)}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
+                webSearchEnabled 
+                  ? "bg-blue-100 text-blue-700 hover:bg-blue-200" 
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              }`}
+            >
+              <Globe className="h-3 w-3" />
+              Web Search
+            </button>
+            {webSearchEnabled && (
+              <div className="text-xs text-gray-500">
+                ({webSearchOptions?.maxResults || 5} results, {webSearchOptions?.searchContextSize || "medium"})
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

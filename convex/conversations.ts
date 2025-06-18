@@ -189,4 +189,39 @@ export const deleteConversation = mutation({
     // delete the conversation
     await ctx.db.delete(args.id);
   },
+});
+
+export const updateConversationWebSearch = mutation({
+  args: {
+    id: v.id("conversations"),
+    enabled: v.boolean(),
+    options: v.optional(v.object({
+      maxResults: v.optional(v.number()),
+      searchContextSize: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const conversation = await ctx.db.get(args.id);
+    if (!conversation) throw new Error("Conversation not found");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user || conversation.userId !== user._id) {
+      throw new Error("Unauthorized");
+    }
+
+    await ctx.db.patch(args.id, {
+      webSearchEnabled: args.enabled,
+      webSearchOptions: args.options,
+      updatedAt: Date.now(),
+    });
+
+    return args.id;
+  },
 }); 

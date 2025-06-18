@@ -20,10 +20,12 @@ export function ChatView({ conversationId, conversationTitle, modelSlug, mcpUrl 
   const [isLoading, setIsLoading] = useState(false)
   
   const convexMessages = useQuery(api.messages.getMessages, { conversationId })
+  const conversation = useQuery(api.conversations.getConversation, { id: conversationId })
   const sendMessage = useAction(api.chat.sendMessage)
   const updateConversationModel = useMutation(api.conversations.updateConversationModel)
   const updateConversationTitle = useMutation(api.conversations.updateConversationTitle)
   const updateConversationMcpUrl = useMutation(api.conversations.updateConversationMcpUrl)
+  const updateConversationWebSearch = useMutation(api.conversations.updateConversationWebSearch)
 
   // Transform Convex messages to display format
   const messages = convexMessages?.map((m: any) => ({
@@ -69,6 +71,18 @@ export function ChatView({ conversationId, conversationTitle, modelSlug, mcpUrl 
     }
   }, [updateConversationMcpUrl, conversationId])
 
+  const handleWebSearchChange = useCallback(async (enabled: boolean, options?: { maxResults?: number; searchContextSize?: "low" | "medium" | "high" }) => {
+    try {
+      await updateConversationWebSearch({
+        id: conversationId,
+        enabled,
+        options,
+      })
+    } catch (error) {
+      console.error("Failed to update web search:", error)
+    }
+  }, [updateConversationWebSearch, conversationId])
+
   const handleSendMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
@@ -97,9 +111,12 @@ export function ChatView({ conversationId, conversationTitle, modelSlug, mcpUrl 
           conversationTitle={conversationTitle} 
           modelSlug={modelSlug}
           mcpUrl={mcpUrl}
+          webSearchEnabled={conversation?.webSearchEnabled}
+          webSearchOptions={conversation?.webSearchOptions}
           onModelChange={handleModelChange}
           onTitleChange={handleTitleChange}
           onMcpUrlChange={handleMcpUrlChange}
+          onWebSearchChange={handleWebSearchChange}
           isLoading={isLoading}
         />
         <div className="flex-1 flex items-center justify-center">
@@ -115,9 +132,12 @@ export function ChatView({ conversationId, conversationTitle, modelSlug, mcpUrl 
         conversationTitle={conversationTitle} 
         modelSlug={modelSlug}
         mcpUrl={mcpUrl}
+        webSearchEnabled={conversation?.webSearchEnabled}
+        webSearchOptions={conversation?.webSearchOptions}
         onModelChange={handleModelChange}
         onTitleChange={handleTitleChange}
         onMcpUrlChange={handleMcpUrlChange}
+        onWebSearchChange={handleWebSearchChange}
         isLoading={isLoading}
       />
       <MessagesContainer messages={messages} isLoading={isLoading} />
