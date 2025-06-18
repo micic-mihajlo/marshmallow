@@ -11,6 +11,7 @@ interface FileUploadProps {
   conversationId: Id<"conversations">;
   onFileUploaded: (attachmentId: Id<"fileAttachments">) => void;
   onError: (error: string) => void;
+  disabled?: boolean;
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -22,7 +23,7 @@ const ALLOWED_TYPES = [
   "application/pdf",
 ];
 
-export function FileUpload({ conversationId, onFileUploaded, onError }: FileUploadProps) {
+export function FileUpload({ conversationId, onFileUploaded, onError, disabled = false }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -103,18 +104,25 @@ export function FileUpload({ conversationId, onFileUploaded, onError }: FileUplo
     console.log("[FileUpload] Files dropped");
     setIsDragging(false);
     
+    if (disabled) {
+      console.log("[FileUpload] Upload disabled, ignoring dropped files");
+      return;
+    }
+    
     const files = Array.from(e.dataTransfer.files);
     console.log("[FileUpload] Processing", files.length, "dropped files");
     files.forEach(uploadFile);
-  }, [uploadFile]);
+  }, [uploadFile, disabled]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    if (disabled) return;
+    
     if (!isDragging) {
       console.log("[FileUpload] Drag enter detected");
       setIsDragging(true);
     }
-  }, [isDragging]);
+  }, [isDragging, disabled]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -126,6 +134,11 @@ export function FileUpload({ conversationId, onFileUploaded, onError }: FileUplo
   }, []);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) {
+      console.log("[FileUpload] Upload disabled, ignoring file selection");
+      return;
+    }
+    
     const files = Array.from(e.target.files || []);
     console.log("[FileUpload] Files selected via input:", files.length, "files");
     files.forEach(uploadFile);
@@ -133,7 +146,7 @@ export function FileUpload({ conversationId, onFileUploaded, onError }: FileUplo
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  }, [uploadFile]);
+  }, [uploadFile, disabled]);
 
   return (
     <div>
@@ -148,15 +161,17 @@ export function FileUpload({ conversationId, onFileUploaded, onError }: FileUplo
       
       <button
         onClick={() => {
+          if (disabled) return;
           console.log("[FileUpload] File attachment button clicked");
           fileInputRef.current?.click();
         }}
-        disabled={isUploading}
+        disabled={isUploading || disabled}
         className={cn(
           "p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-all duration-200 hover:scale-105 active:scale-100",
-          isUploading && "cursor-not-allowed animate-pulse"
+          isUploading && "cursor-not-allowed animate-pulse",
+          disabled && !isUploading && "cursor-not-allowed opacity-50"
         )}
-        title="Attach file"
+        title={disabled ? "Upload disabled" : "Attach file"}
       >
         {isUploading ? (
           <Loader2 className="w-5 h-5 animate-spin" />

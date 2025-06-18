@@ -1,9 +1,9 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Send, X, Globe, Settings } from "lucide-react"
+import { Send, X, Globe, Settings, AlertTriangle } from "lucide-react"
 import { useRef, KeyboardEvent, useState } from "react"
-import { useMutation } from "convex/react"
+import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import { FileUpload } from "./file-upload"
 import { AttachmentPreview } from "./attachment-preview"
@@ -47,18 +47,54 @@ export function ChatInput({
   // Add mutations for direct file upload
   const generateUploadUrl = useMutation(api.fileStorage.generateUploadUrl)
   const storeFileMetadata = useMutation(api.fileStorage.storeFileMetadata)
+  
+  // Check BYOK requirements for current model
+  const modelBYOKCheck = useQuery(
+    api.modelSettings.checkModelBYOKRequirement, 
+    modelSlug ? { modelSlug } : "skip"
+  )
+  const currentUser = useQuery(api.users.getCurrentUser)
+  
+  // Check if model requires BYOK but user doesn't have it enabled
+  const requiresBYOKButNotEnabled = Boolean(
+    modelBYOKCheck?.requiresBYOK && 
+    currentUser && 
+    !currentUser.useBYOK
+  )
 
   console.log("[ChatInput] Rendering with", attachments.length, "attachments")
+  console.log("[ChatInput] BYOK check:", {
+    modelSlug,
+    requiresBYOK: modelBYOKCheck?.requiresBYOK,
+    userHasBYOK: currentUser?.useBYOK,
+    blocked: requiresBYOKButNotEnabled
+  })
 
   const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
+      
+      // Block Enter key submission if BYOK is required but not enabled
+      if (requiresBYOKButNotEnabled) {
+        console.log("[ChatInput] Enter key blocked: BYOK required but not enabled for", modelSlug)
+        setUploadError("This model requires BYOK. Please enable BYOK in settings or select a different model.")
+        return
+      }
+      
       handleSubmit(e as unknown as React.FormEvent)
     }
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Block submission if BYOK is required but not enabled
+    if (requiresBYOKButNotEnabled) {
+      console.log("[ChatInput] Submission blocked: BYOK required but not enabled for", modelSlug)
+      setUploadError("This model requires BYOK. Please enable BYOK in settings or select a different model.")
+      return
+    }
+    
     console.log("[ChatInput] Form submitted with", attachments.length, "attachments")
     onSubmit(e, attachments.length > 0 ? attachments : undefined)
     setAttachments([]) // Clear attachments after sending
@@ -205,6 +241,31 @@ export function ChatInput({
           </div>
         )}
 
+        {/* BYOK warning display */}
+        {requiresBYOKButNotEnabled && (
+          <div className="px-4 pt-4">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-3">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm text-amber-800 font-medium">
+                    BYOK Required for {modelBYOKCheck?.modelName || modelSlug}
+                  </p>
+                  <p className="text-sm text-amber-700 mt-1">
+                    This model requires you to bring your own OpenRouter API key. 
+                    <a 
+                      href="/settings" 
+                      className="underline hover:text-amber-900 ml-1"
+                    >
+                      Enable BYOK in settings
+                    </a> to use this model.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="px-6 py-4">
           <div className="max-w-4xl mx-auto">
             <form onSubmit={handleSubmit} className="relative">
@@ -250,6 +311,7 @@ export function ChatInput({
                   conversationId={conversationId}
                   onFileUploaded={handleFileUploaded}
                   onError={handleFileError}
+                  disabled={requiresBYOKButNotEnabled}
                 />
                 
                 <input
@@ -258,27 +320,32 @@ export function ChatInput({
                   onChange={onInputChange}
                   onKeyPress={handleKeyPress}
                   placeholder={
-                    attachments.length > 0 
-                      ? "Add a message about your files..." 
-                      : "Type your message here..."
+                    requiresBYOKButNotEnabled
+                      ? "Enable BYOK in settings to use this model"
+                      : attachments.length > 0 
+                        ? "Add a message about your files..." 
+                        : "Type your message here..."
                   }
-                  className="flex-1 py-1 bg-transparent outline-none text-[15px] placeholder:text-gray-400 text-gray-800"
-                  disabled={isLoading}
+                  className={`flex-1 py-1 bg-transparent outline-none text-[15px] placeholder:text-gray-400 ${
+                    requiresBYOKButNotEnabled ? 'text-gray-400 cursor-not-allowed' : 'text-gray-800'
+                  }`}
+                  disabled={isLoading || requiresBYOKButNotEnabled}
                 />
                 
                 <Button
                   type="submit"
-                  disabled={(!input.trim() && attachments.length === 0) || isLoading}
+                  disabled={(!input.trim() && attachments.length === 0) || isLoading || requiresBYOKButNotEnabled}
                   className={`
                     p-2.5 rounded-xl transition-all duration-200
-                    ${(!input.trim() && attachments.length === 0) || isLoading
+                    ${(!input.trim() && attachments.length === 0) || isLoading || requiresBYOKButNotEnabled
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-gray-900 hover:bg-gray-800 text-white hover:scale-105 active:scale-100'
                     }
                   `}
                   size="sm"
+                  title={requiresBYOKButNotEnabled ? "Enable BYOK in settings to use this model" : undefined}
                 >
-                  <Send className={`h-4 w-4 ${(input.trim() || attachments.length > 0) && !isLoading ? 'rotate-0' : '-rotate-12'} transition-transform duration-200`} />
+                  <Send className={`h-4 w-4 ${(input.trim() || attachments.length > 0) && !isLoading && !requiresBYOKButNotEnabled ? 'rotate-0' : '-rotate-12'} transition-transform duration-200`} />
                 </Button>
               </div>
               

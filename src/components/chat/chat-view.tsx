@@ -94,6 +94,16 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
       console.log("[ChatView] Message sent successfully")
     } catch (error) {
       console.error("[ChatView] Failed to send message:", error)
+      
+      // Check if this is a BYOK-related error
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      if (errorMessage.includes("requires you to bring your own") || errorMessage.includes("BYOK")) {
+        // Don't restore input for BYOK errors since user needs to fix settings first
+        console.log("[ChatView] BYOK error detected, not restoring input")
+      } else {
+        // For other errors, restore the input so user can retry
+        setInput(prompt)
+      }
     } finally {
       setIsLoading(false)
     }
