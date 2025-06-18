@@ -29,14 +29,21 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, dropdown
     )
   }
   
-  // Use user's enabled models, but if the selected model is not in there, include all admin-enabled models
-  let modelsToShow = enabledModels;
+  // Use user's enabled models, but if the selected model is not in there, add just that model
   const selectedInUserModels = enabledModels.find(m => m.slug === selectedModel);
+  const modelsToShow = [...enabledModels];
   
   if (!selectedInUserModels && selectedModel) {
-    // If the selected model is not in user's enabled models, show all admin-enabled models
+    // If the selected model is not in user's enabled models, add just that specific model
     // This happens when switching to conversations that use models not in user preferences
-    modelsToShow = allEnabledModels;
+    const conversationModel = allEnabledModels.find(m => m.slug === selectedModel);
+    if (conversationModel) {
+      modelsToShow.push({
+        ...conversationModel,
+        isDefault: conversationModel.slug === "google/gemini-2.0-flash-exp" || conversationModel.slug === "google/gemini-2.5-flash-preview-05-20",
+        canDisable: !(conversationModel.slug === "google/gemini-2.0-flash-exp" || conversationModel.slug === "google/gemini-2.5-flash-preview-05-20"),
+      });
+    }
   }
   
   const models = modelsToShow.map(model => ({
