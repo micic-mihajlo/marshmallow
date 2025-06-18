@@ -100,4 +100,118 @@ export default defineSchema({
   }).index("by_admin", ["adminId"])
     .index("by_timestamp", ["timestamp"])
     .index("by_action", ["action"]),
+
+  // Usage Tracking Tables
+  usageTracking: defineTable({
+    userId: v.id("users"),
+    conversationId: v.id("conversations"),
+    messageId: v.id("messages"),
+    generationId: v.string(), // OpenRouter generation ID
+    modelSlug: v.string(),
+    promptTokens: v.number(),
+    completionTokens: v.number(),
+    totalTokens: v.number(),
+    cachedTokens: v.optional(v.number()),
+    reasoningTokens: v.optional(v.number()),
+    costInCredits: v.number(), // OpenRouter cost in credits
+    costInUSD: v.number(), // Calculated cost in USD
+    timestamp: v.number(),
+    processingTimeMs: v.optional(v.number()),
+  })
+  .index("by_user", ["userId"])
+  .index("by_conversation", ["conversationId"])
+  .index("by_model", ["modelSlug"])
+  .index("by_timestamp", ["timestamp"])
+  .index("by_generation", ["generationId"]),
+
+  requestLogs: defineTable({
+    userId: v.id("users"),
+    conversationId: v.optional(v.id("conversations")),
+    messageId: v.optional(v.id("messages")),
+    requestType: v.string(), // "chat_completion", "file_upload", etc.
+    method: v.string(), // HTTP method
+    endpoint: v.string(), // API endpoint
+    status: v.string(), // "success", "error", "pending"
+    statusCode: v.optional(v.number()),
+    errorMessage: v.optional(v.string()),
+    requestSize: v.optional(v.number()), // in bytes
+    responseSize: v.optional(v.number()), // in bytes
+    processingTimeMs: v.number(),
+    timestamp: v.number(),
+    userAgent: v.optional(v.string()),
+    ipAddress: v.optional(v.string()),
+    metadata: v.optional(v.any()), // Additional request metadata
+  })
+  .index("by_user", ["userId"])
+  .index("by_status", ["status"])
+  .index("by_timestamp", ["timestamp"])
+  .index("by_type", ["requestType"]),
+
+  userActivity: defineTable({
+    userId: v.id("users"),
+    activityType: v.string(), // "login", "message_sent", "file_uploaded", etc.
+    sessionId: v.optional(v.string()),
+    conversationId: v.optional(v.id("conversations")),
+    details: v.optional(v.any()),
+    timestamp: v.number(),
+    ipAddress: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+  })
+  .index("by_user", ["userId"])
+  .index("by_type", ["activityType"])
+  .index("by_timestamp", ["timestamp"])
+  .index("by_session", ["sessionId"]),
+
+  usageAggregates: defineTable({
+    userId: v.optional(v.id("users")), // null for system-wide aggregates
+    period: v.string(), // "hourly", "daily", "weekly", "monthly"
+    periodKey: v.string(), // "2024-01-15", "2024-01-W3", etc.
+    totalRequests: v.number(),
+    successfulRequests: v.number(),
+    failedRequests: v.number(),
+    totalTokens: v.number(),
+    promptTokens: v.number(),
+    completionTokens: v.number(),
+    totalCostUSD: v.number(),
+    avgProcessingTimeMs: v.number(),
+    uniqueModelsUsed: v.number(),
+    conversationsStarted: v.number(),
+    filesUploaded: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_period", ["period", "periodKey"])
+  .index("by_user", ["userId"]),
+
+  userQuotas: defineTable({
+    userId: v.id("users"),
+    quotaType: v.string(), // "monthly_tokens", "daily_requests", etc.
+    limit: v.number(),
+    used: v.number(),
+    resetDate: v.number(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_user", ["userId"])
+  .index("by_type", ["quotaType"])
+  .index("by_reset_date", ["resetDate"]),
+
+  systemAlerts: defineTable({
+    alertType: v.string(), // "high_usage", "cost_threshold", "error_rate", etc.
+    severity: v.string(), // "low", "medium", "high", "critical"
+    title: v.string(),
+    message: v.string(),
+    userId: v.optional(v.id("users")), // null for system-wide alerts
+    metadata: v.optional(v.any()),
+    isRead: v.boolean(),
+    isResolved: v.boolean(),
+    createdAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+  })
+  .index("by_type", ["alertType"])
+  .index("by_severity", ["severity"])
+  .index("by_user", ["userId"])
+  .index("by_status", ["isRead", "isResolved"])
+  .index("by_timestamp", ["createdAt"]),
 });

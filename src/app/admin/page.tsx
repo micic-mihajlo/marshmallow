@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MetricsDashboard } from "@/components/admin/metrics-dashboard";
+import { UsageDashboard } from "@/components/admin/usage-dashboard";
 import { ModelSelector } from "@/components/chat/model-selector";
 import { AdminLogs } from "@/components/admin/admin-logs";
 import { UserManagement } from "@/components/admin/user-management";
@@ -20,6 +21,7 @@ export default function AdminPage() {
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="usage">Usage Monitoring</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="models">Models</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
@@ -27,6 +29,10 @@ export default function AdminPage() {
 
         <TabsContent value="overview" className="space-y-4">
           <MetricsDashboard />
+        </TabsContent>
+
+        <TabsContent value="usage" className="space-y-4">
+          <UsageDashboard />
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
