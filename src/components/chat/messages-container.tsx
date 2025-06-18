@@ -5,12 +5,14 @@ import { MessageBubble } from "./message-bubble"
 import { TypingIndicator } from "./typing-indicator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ChevronDown } from "lucide-react"
+import { Id } from "../../../convex/_generated/dataModel"
 
 interface Message {
   id: string
   role: "user" | "assistant" | "system" | "data"
   content: string
   createdAt?: Date
+  attachments?: Id<"fileAttachments">[]
 }
 
 interface MessagesContainerProps {
@@ -85,6 +87,7 @@ export const MessagesContainer = memo(function MessagesContainer({
                 role={message.role as "user" | "assistant"}
                 content={message.content}
                 timestamp={message.createdAt}
+                attachments={message.attachments}
               />
             ))}
             

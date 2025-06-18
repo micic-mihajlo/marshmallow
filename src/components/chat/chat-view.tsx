@@ -28,7 +28,11 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
     id: m._id,
     role: m.role as "user" | "assistant",
     content: m.content,
+    attachments: m.attachments,
   })) || []
+
+  console.log("[ChatView] Transformed", messages.length, "messages, with attachments:", 
+    messages.filter(m => m.attachments && m.attachments.length > 0).length)
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value)
@@ -56,10 +60,12 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
     }
   }, [updateConversationTitle, conversationId])
 
-  const handleSendMessage = useCallback(async (e: React.FormEvent) => {
+  const handleSendMessage = useCallback(async (e: React.FormEvent, attachments?: Id<"fileAttachments">[]) => {
     e.preventDefault()
-    if (!input.trim() || isLoading) return
+    if ((!input.trim() && (!attachments || attachments.length === 0)) || isLoading) return
 
+    console.log("[ChatView] Sending message with attachments:", attachments?.length || 0)
+    
     const prompt = input.trim()
     setInput("")
     setIsLoading(true)
@@ -68,9 +74,11 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
       await sendMessage({
         conversationId,
         prompt,
+        attachments,
       })
+      console.log("[ChatView] Message sent successfully")
     } catch (error) {
-      console.error("Failed to send message:", error)
+      console.error("[ChatView] Failed to send message:", error)
     } finally {
       setIsLoading(false)
     }
@@ -107,6 +115,7 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
       <ChatInput
         input={input}
         isLoading={isLoading}
+        conversationId={conversationId}
         onInputChange={handleInputChange}
         onSubmit={handleSendMessage}
       />
