@@ -84,6 +84,7 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, dropdown
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
         className="flex items-center justify-between w-full px-4 py-3 text-sm bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed min-w-[160px] focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-300"
+        type="button"
       >
         <div className="flex flex-col items-start gap-0.5">
           <div className="flex items-center gap-2">
@@ -122,6 +123,7 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, dropdown
                 className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-center justify-between group ${
                   index !== models.length - 1 ? 'border-b border-gray-100' : ''
                 }`}
+                type="button"
               >
                 <div className="flex flex-col gap-0.5">
                   <div className="flex items-center gap-2">

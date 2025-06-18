@@ -239,6 +239,7 @@ export function ChatInput({
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start justify-between">
                 <p className="text-sm text-red-700 flex-1">{uploadError}</p>
                 <button
+                  type="button"
                   onClick={() => setUploadError(null)}
                   className="ml-3 text-red-500 hover:text-red-700 transition-colors"
                 >
@@ -262,7 +263,7 @@ export function ChatInput({
                   <p className="text-sm text-amber-700 mt-1">
                     This model requires you to bring your own OpenRouter API key. 
                     <BYOKSettings>
-                      <button className="underline hover:text-amber-900 ml-1">
+                      <button type="button" className="underline hover:text-amber-900 ml-1">
                         Enable BYOK in settings
                       </button>
                     </BYOKSettings> to use this model.
@@ -290,6 +291,7 @@ export function ChatInput({
                   
                   {onWebSearchChange && (
                     <button
+                      type="button"
                       onClick={() => onWebSearchChange(!webSearchEnabled, webSearchOptions)}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                         webSearchEnabled 

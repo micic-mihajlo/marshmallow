@@ -160,6 +160,7 @@ export function FileUpload({ conversationId, onFileUploaded, onError, disabled =
       />
       
       <button
+        type="button"
         onClick={() => {
           if (disabled) return;
           console.log("[FileUpload] File attachment button clicked");
