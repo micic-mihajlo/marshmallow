@@ -26,7 +26,7 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
   const updateConversationWebSearch = useMutation(api.conversations.updateConversationWebSearch)
 
   // Transform Convex messages to display format
-  const messages = convexMessages?.map((m: any) => ({
+  const messages = convexMessages?.map((m) => ({
     id: m._id,
     role: m.role as "user" | "assistant",
     content: m.content,
@@ -105,13 +105,7 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
       <div className="flex-1 flex flex-col h-full">
         <ChatHeader 
           conversationTitle={conversationTitle} 
-          modelSlug={modelSlug}
-          webSearchEnabled={conversation?.webSearchEnabled}
-          webSearchOptions={conversation?.webSearchOptions}
-          onModelChange={handleModelChange}
           onTitleChange={handleTitleChange}
-          onWebSearchChange={handleWebSearchChange}
-          isLoading={isLoading}
         />
         <div className="flex-1 flex items-center justify-center">
           <div className="h-6 w-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
@@ -124,21 +118,20 @@ export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatV
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       <ChatHeader 
         conversationTitle={conversationTitle} 
-        modelSlug={modelSlug}
-        webSearchEnabled={conversation?.webSearchEnabled}
-        webSearchOptions={conversation?.webSearchOptions}
-        onModelChange={handleModelChange}
         onTitleChange={handleTitleChange}
-        onWebSearchChange={handleWebSearchChange}
-        isLoading={isLoading}
       />
       <MessagesContainer messages={messages} isLoading={isLoading} />
       <ChatInput
         input={input}
         isLoading={isLoading}
         conversationId={conversationId}
+        modelSlug={modelSlug}
+        webSearchEnabled={conversation?.webSearchEnabled}
+        webSearchOptions={conversation?.webSearchOptions}
         onInputChange={handleInputChange}
         onSubmit={handleSendMessage}
+        onModelChange={handleModelChange}
+        onWebSearchChange={handleWebSearchChange}
       />
     </div>
   )

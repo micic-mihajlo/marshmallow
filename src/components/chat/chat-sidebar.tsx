@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { MessageSquare, Plus, Trash2, Clock, Share2, Check, Link as LinkIcon } from "lucide-react"
+import { MessageSquare, Plus, Trash2, Clock, Share2, Link as LinkIcon, Copy, Check } from "lucide-react"
 
 import { UserButton } from "@clerk/nextjs"
 import Link from "next/link"
@@ -10,6 +10,7 @@ import { Id } from "../../../convex/_generated/dataModel"
 import { useState } from "react"
 import { useMutation } from "convex/react"
 import { api } from "../../../convex/_generated/api"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 
 interface Conversation {
   _id: Id<"conversations">
@@ -37,7 +38,10 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   const [hoveredConversation, setHoveredConversation] = useState<Id<"conversations"> | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Id<"conversations"> | null>(null)
-  const [copiedShareId, setCopiedShareId] = useState<string | null>(null)
+  const [shareDialogConversation, setShareDialogConversation] = useState<Conversation | null>(null)
+  const [shareLink, setShareLink] = useState<string | null>(null)
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
   
   const toggleSharing = useMutation(api.conversations.toggleConversationSharing)
 
@@ -65,33 +69,23 @@ export function ChatSidebar({
     return new Date(timestamp).toLocaleDateString()
   }
 
-  const handleShare = async (e: React.MouseEvent, conversation: Conversation) => {
-    e.stopPropagation()
-    
+  const openShareDialog = async (conversation: Conversation) => {
+    setIsGeneratingLink(true)
     try {
-      const shareId = await toggleSharing({ 
-        id: conversation._id, 
-        isPublic: !conversation.isPublic 
-      })
-      
-      if (shareId && !conversation.isPublic) {
-        // Copy to clipboard
-        const shareUrl = `${window.location.origin}/share/${shareId}`
-        await navigator.clipboard.writeText(shareUrl)
-        setCopiedShareId(shareId)
-        setTimeout(() => setCopiedShareId(null), 2000)
+      let link: string
+      if (conversation.isPublic && conversation.shareId) {
+        link = `${window.location.origin}/share/${conversation.shareId}`
+      } else {
+        const shareId = await toggleSharing({ id: conversation._id, isPublic: true })
+        link = `${window.location.origin}/share/${shareId}`
       }
-    } catch (error) {
-      console.error("Failed to toggle sharing:", error)
+      setShareLink(link)
+      setShareDialogConversation({ ...conversation, isPublic: true, shareId: conversation.shareId ?? link.split("/").pop() })
+    } catch (err) {
+      console.error("Failed to generate share link", err)
+    } finally {
+      setIsGeneratingLink(false)
     }
-  }
-
-  const copyShareLink = async (e: React.MouseEvent, shareId: string) => {
-    e.stopPropagation()
-    const shareUrl = `${window.location.origin}/share/${shareId}`
-    await navigator.clipboard.writeText(shareUrl)
-    setCopiedShareId(shareId)
-    setTimeout(() => setCopiedShareId(null), 2000)
   }
 
   return (
@@ -144,7 +138,7 @@ export function ChatSidebar({
                     : "border-transparent hover:bg-slate-50 hover:border-slate-100"
                 )}
               >
-                <div className="pr-8">
+                <div className="pr-16">
                   <div className="font-medium text-slate-900 text-sm leading-relaxed truncate">
                     {conversation.title}
                   </div>
@@ -165,29 +159,10 @@ export function ChatSidebar({
               {/* Action buttons */}
               {hoveredConversation === conversation._id && (
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                  {conversation.isPublic && conversation.shareId ? (
-                    <button
-                      onClick={(e) => copyShareLink(e, conversation.shareId!)}
-                      className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all duration-200"
-                      title="Copy share link"
-                    >
-                      {copiedShareId === conversation.shareId ? (
-                        <Check className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <LinkIcon className="h-4 w-4" />
-                      )}
-                    </button>
-                  ) : null}
-                  
                   <button
-                    onClick={(e) => handleShare(e, conversation)}
-                    className={cn(
-                      "p-2 rounded-lg transition-all duration-200",
-                      conversation.isPublic
-                        ? "hover:bg-amber-50 text-amber-600 hover:text-amber-700"
-                        : "hover:bg-slate-100 text-slate-400 hover:text-slate-600"
-                    )}
-                    title={conversation.isPublic ? "Make private" : "Share conversation"}
+                    onClick={(e) => { e.stopPropagation(); openShareDialog(conversation) }}
+                    className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all duration-200"
+                    title="Share conversation"
                   >
                     <Share2 className="h-4 w-4" />
                   </button>
@@ -246,6 +221,97 @@ export function ChatSidebar({
           </div>
         )}
       </div>
+
+      <Dialog open={!!shareDialogConversation} onOpenChange={(open) => { if (!open) { setShareDialogConversation(null); setLinkCopied(false) } }}>
+        <DialogContent className="sm:max-w-md bg-white border border-gray-200 rounded-xl shadow-lg p-6">
+          <div className="space-y-4">
+            <div>
+              <DialogTitle className="text-lg font-semibold text-gray-900">Share conversation</DialogTitle>
+              <p className="text-sm text-gray-600 mt-1">
+                Anyone with the link can view this chat
+              </p>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4 border">
+              <h3 className="font-medium text-gray-900 truncate">
+                {shareDialogConversation?.title}
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                {shareDialogConversation?._creationTime && formatTimeAgo(shareDialogConversation._creationTime)}
+              </p>
+            </div>
+
+            {isGeneratingLink ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="flex items-center gap-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-200 border-t-gray-900"></div>
+                  <span className="text-sm text-gray-600">Generating link...</span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-2">Share link</label>
+                  <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg p-3">
+                    <input
+                      value={shareLink || ""}
+                      readOnly
+                      className="flex-1 bg-transparent text-sm text-gray-700 font-mono overflow-hidden text-ellipsis focus:outline-none"
+                      onClick={(e) => e.currentTarget.select()}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    onClick={async () => {
+                      if (shareLink) {
+                        await navigator.clipboard.writeText(shareLink)
+                        setLinkCopied(true)
+                      }
+                    }}
+                    className={cn(
+                      "flex-1 rounded-lg font-medium",
+                      linkCopied 
+                        ? "bg-green-600 hover:bg-green-700 text-white" 
+                        : "bg-gray-900 hover:bg-gray-800 text-white"
+                    )}
+                  >
+                    {linkCopied ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy link
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShareDialogConversation(null)
+                      setLinkCopied(false)
+                    }}
+                    className="rounded-lg border-gray-200 hover:bg-gray-50"
+                  >
+                    Done
+                  </Button>
+                </div>
+
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                  <p className="text-sm text-orange-800">
+                    <strong>Note:</strong> File attachments are not included in shared conversations for privacy and security.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 } 

@@ -1,29 +1,43 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Send, X } from "lucide-react"
+import { Send, X, Globe, Settings } from "lucide-react"
 import { useRef, KeyboardEvent, useState } from "react"
 import { useMutation } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import { FileUpload } from "./file-upload"
 import { AttachmentPreview } from "./attachment-preview"
 import { GlobalDropZone } from "./global-drop-zone"
+import { ModelSelector } from "./model-selector"
 import { Id } from "../../../convex/_generated/dataModel"
 
 interface ChatInputProps {
   input: string
   isLoading: boolean
   conversationId: Id<"conversations">
+  modelSlug?: string
+  webSearchEnabled?: boolean
+  webSearchOptions?: {
+    maxResults?: number
+    searchContextSize?: "low" | "medium" | "high"
+  }
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   onSubmit: (e: React.FormEvent, attachments?: Id<"fileAttachments">[]) => void
+  onModelChange?: (modelId: string) => void
+  onWebSearchChange?: (enabled: boolean, options?: { maxResults?: number; searchContextSize?: "low" | "medium" | "high" }) => void
 }
 
 export function ChatInput({ 
   input, 
   isLoading, 
   conversationId,
+  modelSlug,
+  webSearchEnabled,
+  webSearchOptions,
   onInputChange, 
-  onSubmit 
+  onSubmit,
+  onModelChange,
+  onWebSearchChange
 }: ChatInputProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [attachments, setAttachments] = useState<Id<"fileAttachments">[]>([])
@@ -190,10 +204,47 @@ export function ChatInput({
           </div>
         )}
 
-        <div className="px-4 py-6">
+        <div className="px-6 py-4">
           <div className="max-w-4xl mx-auto">
             <form onSubmit={handleSubmit} className="relative">
-              <div className="flex items-center gap-3 bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 focus-within:shadow-md focus-within:border-gray-300 px-4 py-2">
+              {/* Controls row */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  {onModelChange && (
+                    <ModelSelector
+                      selectedModel={modelSlug || "google/gemini-2.5-flash-preview-05-20"}
+                      onModelChange={onModelChange}
+                      disabled={isLoading}
+                      dropdownDirection="up"
+                    />
+                  )}
+                  
+                  {onWebSearchChange && (
+                    <button
+                      onClick={() => onWebSearchChange(!webSearchEnabled, webSearchOptions)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                        webSearchEnabled 
+                          ? "bg-blue-100 text-blue-700 hover:bg-blue-200" 
+                          : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                      }`}
+                    >
+                      <Globe className="h-4 w-4" />
+                      Search
+                    </button>
+                  )}
+                </div>
+                
+                <a
+                  href="/settings"
+                  className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+                  title="Model Settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </a>
+              </div>
+
+              {/* Input row */}
+              <div className="flex items-center gap-3 bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200 focus-within:shadow-md focus-within:border-gray-300 px-4 py-3">
                 <FileUpload
                   conversationId={conversationId}
                   onFileUploaded={handleFileUploaded}
@@ -208,9 +259,9 @@ export function ChatInput({
                   placeholder={
                     attachments.length > 0 
                       ? "Add a message about your files..." 
-                      : "Send a message..."
+                      : "Type your message here..."
                   }
-                  className="flex-1 py-2 bg-transparent outline-none text-[15px] placeholder:text-gray-400 text-gray-800"
+                  className="flex-1 py-1 bg-transparent outline-none text-[15px] placeholder:text-gray-400 text-gray-800"
                   disabled={isLoading}
                 />
                 

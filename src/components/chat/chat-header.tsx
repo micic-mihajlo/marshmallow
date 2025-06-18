@@ -1,25 +1,14 @@
 "use client"
 
-import { Bot, Pencil, X, Check, Globe, Settings } from "lucide-react"
-
+import { Bot, Pencil, X, Check } from "lucide-react"
 import { useState, useRef, useEffect } from "react"
-import { ModelSelector } from "./model-selector"
 
 interface ChatHeaderProps {
   conversationTitle?: string
-  modelSlug?: string
-  webSearchEnabled?: boolean
-  webSearchOptions?: {
-    maxResults?: number
-    searchContextSize?: "low" | "medium" | "high"
-  }
-  onModelChange?: (modelId: string) => void
   onTitleChange?: (title: string) => void
-  onWebSearchChange?: (enabled: boolean, options?: { maxResults?: number; searchContextSize?: "low" | "medium" | "high" }) => void
-  isLoading?: boolean
 }
 
-export function ChatHeader({ conversationTitle, modelSlug, webSearchEnabled, webSearchOptions, onModelChange, onTitleChange, onWebSearchChange, isLoading }: ChatHeaderProps) {
+export function ChatHeader({ conversationTitle, onTitleChange }: ChatHeaderProps) {
   const [editing, setEditing] = useState(false)
   const [titleDraft, setTitleDraft] = useState(conversationTitle || "")
   const inputRef = useRef<HTMLInputElement>(null)
@@ -46,10 +35,10 @@ export function ChatHeader({ conversationTitle, modelSlug, webSearchEnabled, web
   }
 
   return (
-    <div className="h-14 border-b border-gray-200 bg-white flex items-center px-4">
-      <div className="max-w-4xl mx-auto w-full flex items-center justify-between">
+    <div className="h-16 border-b border-gray-100 bg-white flex items-center px-6">
+      <div className="max-w-4xl mx-auto w-full flex items-center justify-center">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 bg-gray-900 rounded-lg flex items-center justify-center">
+          <div className="h-8 w-8 bg-gray-900 rounded-xl flex items-center justify-center">
             <Bot className="h-4 w-4 text-white" />
           </div>
           <div className="flex items-center gap-2">
@@ -62,68 +51,31 @@ export function ChatHeader({ conversationTitle, modelSlug, webSearchEnabled, web
                   if (e.key === "Enter") save()
                   if (e.key === "Escape") cancel()
                 }}
-                className="text-sm font-medium text-gray-900 px-2 py-0.5 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="text-lg font-medium text-gray-900 px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
               />
             ) : (
-              <h2
-                className="font-medium text-gray-900 text-sm cursor-pointer"
+              <h1
+                className="font-medium text-gray-900 text-lg cursor-pointer"
                 onDoubleClick={() => setEditing(true)}
               >
-                {conversationTitle || "Chat"}
-              </h2>
+                {conversationTitle || "New Chat"}
+              </h1>
             )}
             {onTitleChange && !editing && (
               <button
                 onClick={() => setEditing(true)}
-                className="p-1 rounded hover:bg-gray-100 text-gray-500 transition-colors"
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
               >
-                <Pencil className="h-3.5 w-3.5" />
+                <Pencil className="h-4 w-4" />
               </button>
             )}
             {editing && (
               <div className="flex gap-1">
-                <button onClick={save} className="p-1 text-green-600 hover:bg-green-50 rounded"><Check className="h-4 w-4"/></button>
-                <button onClick={cancel} className="p-1 text-red-600 hover:bg-red-50 rounded"><X className="h-4 w-4"/></button>
+                <button onClick={save} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg"><Check className="h-4 w-4"/></button>
+                <button onClick={cancel} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"><X className="h-4 w-4"/></button>
               </div>
             )}
           </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-
-          <a
-            href="/settings"
-            className="p-2 rounded hover:bg-gray-100 text-gray-500 transition-colors"
-            title="Model Settings"
-          >
-            <Settings className="h-4 w-4" />
-          </a>
-
-          {onModelChange && (
-            <ModelSelector
-              selectedModel={modelSlug || "google/gemini-2.5-flash-preview-05-20"}
-              onModelChange={onModelChange}
-              disabled={isLoading}
-            />
-          )}
-
-          {/* web search toggle */}
-          {onWebSearchChange && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onWebSearchChange(!webSearchEnabled, webSearchOptions)}
-                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
-                  webSearchEnabled 
-                    ? "bg-blue-100 text-blue-700 hover:bg-blue-200" 
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                }`}
-              >
-                <Globe className="h-3 w-3" />
-                Web Search
-              </button>
-            </div>
-          )}
-
         </div>
       </div>
     </div>
