@@ -39,6 +39,7 @@ export const sendMessage = action({
     attachments: v.optional(v.array(v.id("fileAttachments"))),
   },
   handler: async (ctx, args) => {
+    const startTime = Date.now();
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
@@ -55,6 +56,8 @@ export const sendMessage = action({
     });
     const isFirstMessage = existingMessages.length === 0;
 
+    console.log("[Chat] Adding user message with attachments:", args.attachments?.length || 0);
+    
     // add user message
     await ctx.runMutation(api.messages.addMessage, {
       conversationId: args.conversationId,
@@ -70,13 +73,28 @@ export const sendMessage = action({
     
     const recentMessages = messages.slice(-20);
     
-    // get user for API key
+    // get user for API key and tracking
     const user = await ctx.runQuery(api.users.getCurrentUser);
     const apiKey = user?.apiKey || process.env.OPENROUTER_API_KEY;
     
     if (!apiKey) {
       throw new Error("No API key available. Please set your OpenRouter API key.");
     }
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Log request start
+    const requestLogId = await ctx.runMutation(api.requestLogs.logRequest, {
+      userId: user._id,
+      conversationId: args.conversationId,
+      requestType: "chat_completion",
+      method: "POST",
+      endpoint: "/api/v1/chat/completions",
+      status: "pending",
+      timestamp: startTime,
+    });
 
     // configure OpenAI client to use OpenRouter
     const openai = new OpenAI({
@@ -104,40 +122,95 @@ export const sendMessage = action({
       /* ---------- build messages with attachment support ---------- */
       const formattedMessages = await Promise.all(
         recentMessages.map(async (msg) => {
-          const base = { role: msg.role as "user" | "assistant", content: msg.content } as any;
+          const baseMessage = {
+            role: msg.role as "user" | "assistant",
+            content: msg.content,
+          };
 
-          if (!msg.attachments?.length) return base;
+          // If this message has attachments, format them for OpenRouter
+          if (msg.attachments && msg.attachments.length > 0) {
+            console.log("[Chat] Formatting message with", msg.attachments.length, "attachments");
+            
+            const attachmentContents = [];
+            
+            // Add text content first
+            attachmentContents.push({
+              type: "text",
+              text: msg.content || "Please analyze these files.",
+            });
 
-          const parts: any[] = [
-            { type: "text", text: msg.content || "Please analyse these files." },
-          ];
+            // Process each attachment
+            for (const attachmentId of msg.attachments) {
+              try {
+                const attachment = await ctx.runQuery(api.fileStorage.getFileAttachment, {
+                  attachmentId,
+                });
 
-          for (const attachmentId of msg.attachments) {
-            try {
-              const attachment = await ctx.runQuery(api.fileStorage.getFileAttachment, { attachmentId });
-              if (!attachment?.url) continue;
-
-              if (attachment.fileType.startsWith("image/")) {
-                parts.push({ type: "image_url", image_url: { url: attachment.url } });
-              } else if (attachment.fileType === "application/pdf") {
-                const res = await fetch(attachment.url);
-                if (res.ok) {
-                  const buf = await res.arrayBuffer();
-                  const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-                  parts.push({
-                    type: "file",
-                    file: { filename: attachment.fileName, file_data: `data:application/pdf;base64,${b64}` },
-                  });
+                if (attachment && attachment.url) {
+                  console.log("[Chat] Processing attachment:", attachment.fileName, attachment.fileType);
+                  
+                  if (attachment.fileType.startsWith('image/')) {
+                    // For images, use image_url format
+                    attachmentContents.push({
+                      type: "image_url",
+                      image_url: {
+                        url: attachment.url,
+                      },
+                    });
+                  } else if (attachment.fileType === 'application/pdf') {
+                    // For PDFs, fetch content and encode as base64
+                    console.log("[Chat] PDF attachment detected - fetching and encoding:", attachment.fileName);
+                    
+                    try {
+                      // Fetch the PDF content from Convex storage
+                      const pdfResponse = await fetch(attachment.url);
+                      if (pdfResponse.ok) {
+                        const pdfBuffer = await pdfResponse.arrayBuffer();
+                        // Convert ArrayBuffer to base64 using browser-compatible method
+                        const uint8Array = new Uint8Array(pdfBuffer);
+                        let binaryString = '';
+                        for (let i = 0; i < uint8Array.length; i++) {
+                          binaryString += String.fromCharCode(uint8Array[i]);
+                        }
+                        const base64Pdf = btoa(binaryString);
+                        const dataUrl = `data:application/pdf;base64,${base64Pdf}`;
+                        
+                        // Add PDF in OpenRouter's required format
+                        attachmentContents.push({
+                          type: "file",
+                          file: {
+                            filename: attachment.fileName,
+                            file_data: dataUrl,
+                          },
+                        });
+                        
+                        console.log("[Chat] PDF encoded successfully:", attachment.fileName);
+                      } else {
+                        console.error("[Chat] Failed to fetch PDF:", pdfResponse.status);
+                        attachmentContents[0].text += `\n\nAttached PDF file: ${attachment.fileName} (encoding failed)`;
+                      }
+                    } catch (error) {
+                      console.error("[Chat] Error encoding PDF:", error);
+                      attachmentContents[0].text += `\n\nAttached PDF file: ${attachment.fileName} (encoding error)`;
+                    }
+                  }
                 }
+              } catch (error) {
+                console.error("[Chat] Error processing attachment:", attachmentId, error);
               }
-            } catch (err) {
-              console.error("[Chat] attachment error", err);
             }
+
+            return {
+              ...baseMessage,
+              content: attachmentContents,
+            };
           }
 
-          return { ...base, content: parts };
+          return baseMessage;
         })
       );
+
+      console.log("[Chat] Formatted", formattedMessages.length, "messages for OpenRouter");
 
       /* detect presence of pdf attachments */
       let hasPdfAttachments = false;
@@ -166,21 +239,26 @@ export const sendMessage = action({
         max_tokens: 2000,
         reasoning: { effort: "high" },
         usage: { include: true },
-        user: `user_${user?._id || "anon"}`,
+        user: `user_${user._id}`,
       };
 
+      // Configure plugins
       const plugins: any[] = [];
       if (isWebSearchEnabled && !conversation.modelSlug.endsWith(":online")) {
         plugins.push({ id: "web", max_results: webSearchOptions?.maxResults || 5 });
+        console.log("[Chat] Added web search plugin");
       }
       if (hasPdfAttachments) {
         plugins.push({ id: "file-parser", pdf: { engine: "pdf-text" } });
+        console.log("[Chat] Added PDF processing plugin");
       }
       if (plugins.length) requestParams.plugins = plugins;
 
       if (webSearchOptions?.searchContextSize) {
         requestParams.web_search_options = { search_context_size: webSearchOptions.searchContextSize };
       }
+
+      console.log("[Chat] Sending request to OpenRouter with usage tracking");
 
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore - openrouter supports the reasoning param, not yet in openai typings
@@ -192,7 +270,10 @@ export const sendMessage = action({
       let generationId: string | null = null;
       
       for await (const chunk of stream) {
-        if (!generationId && (chunk as any).id) generationId = (chunk as any).id;
+        // Extract generation ID from first chunk
+        if (!generationId && (chunk as any).id) {
+          generationId = (chunk as any).id;
+        }
 
         const reasoningPart = (chunk.choices[0] as any)?.delta?.reasoning || "";
         const contentPart = chunk.choices[0]?.delta?.content || "";
@@ -220,15 +301,67 @@ export const sendMessage = action({
           });
         }
 
+        // Capture usage data from final chunk
         if ((chunk as any).usage) {
           usageData = (chunk as any).usage;
+          console.log("[Chat] Usage data received:", usageData);
         }
       }
 
-      return { success: true, messageId: assistantMessageId, usageData, generationId };
+      const endTime = Date.now();
+      const processingTime = endTime - startTime;
+
+      // Log successful completion
+      await ctx.runMutation(api.requestLogs.updateRequest, {
+        id: requestLogId,
+        status: "success",
+        statusCode: 200,
+        processingTimeMs: processingTime,
+      });
+
+      // Store usage tracking data
+      if (usageData && generationId) {
+        await ctx.runMutation(api.usageTracking.recordUsage, {
+          userId: user._id,
+          conversationId: args.conversationId,
+          messageId: assistantMessageId,
+          generationId,
+          modelSlug: conversation.modelSlug,
+          promptTokens: usageData.prompt_tokens || 0,
+          completionTokens: usageData.completion_tokens || 0,
+          totalTokens: usageData.total_tokens || 0,
+          cachedTokens: usageData.prompt_tokens_details?.cached_tokens || 0,
+          reasoningTokens: usageData.completion_tokens_details?.reasoning_tokens || 0,
+          costInCredits: usageData.cost || 0,
+          costInUSD: (usageData.cost || 0) * 0.000001, // Convert credits to USD (adjust rate)
+          timestamp: endTime,
+          processingTimeMs: processingTime,
+        });
+
+        console.log("[Chat] Usage data stored successfully");
+      }
+
+      return { 
+        success: true, 
+        messageId: assistantMessageId,
+        usageData,
+        generationId,
+      };
       
     } catch (error) {
+      const endTime = Date.now();
+      const processingTime = endTime - startTime;
+
       console.error("OpenRouter API error:", error);
+
+      // Log failed request
+      await ctx.runMutation(api.requestLogs.updateRequest, {
+        id: requestLogId,
+        status: "error",
+        statusCode: (error as any)?.status || 500,
+        errorMessage: (error as any)?.message || "Unknown error",
+        processingTimeMs: processingTime,
+      });
       
       // add error message
       await ctx.runMutation(api.messages.addMessage, {
@@ -240,4 +373,4 @@ export const sendMessage = action({
       throw error;
     }
   },
-}); 
+});
