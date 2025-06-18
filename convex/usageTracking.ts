@@ -116,7 +116,7 @@ export const getSystemUsageStats = query({
     const aggregates = await ctx.db
       .query("usageAggregates")
       .withIndex("by_period", (q) => q.eq("period", args.period))
-      .filter((q) => q.eq(q.field("userId"), null)) // System-wide aggregates
+      .filter((q) => q.eq(q.field("userId"), undefined)) // System-wide aggregates
       .order("desc")
       .take(args.limit || 30);
 
@@ -154,7 +154,7 @@ export const getTopUsersByUsage = query({
       .withIndex("by_period", (q) => 
         q.eq("period", args.period).eq("periodKey", currentPeriodKey)
       )
-      .filter((q) => q.neq(q.field("userId"), null))
+      .filter((q) => q.neq(q.field("userId"), undefined))
       .order("desc")
       .take(args.limit || 10);
 
@@ -305,9 +305,10 @@ async function updateAggregate(ctx: any, usageData: any, period: string, periodK
   // Update user-specific aggregate
   const userAggregate = await ctx.db
     .query("usageAggregates")
-    .withIndex("by_user_period", (q) => 
-      q.eq("userId", usageData.userId).eq("period", period).eq("periodKey", periodKey)
+    .withIndex("by_period", (q) => 
+      q.eq("period", period).eq("periodKey", periodKey)
     )
+    .filter((q: any) => q.eq(q.field("userId"), usageData.userId))
     .first();
 
   const updateData = {
@@ -348,12 +349,13 @@ async function updateAggregate(ctx: any, usageData: any, period: string, periodK
     });
   }
 
-  // Update system-wide aggregate (userId = null)
+  // Update system-wide aggregate (userId = undefined for system-wide)
   const systemAggregate = await ctx.db
     .query("usageAggregates")
-    .withIndex("by_user_period", (q) => 
-      q.eq("userId", null).eq("period", period).eq("periodKey", periodKey)
+    .withIndex("by_period", (q) => 
+      q.eq("period", period).eq("periodKey", periodKey)
     )
+    .filter((q: any) => q.eq(q.field("userId"), undefined))
     .first();
 
   if (systemAggregate) {
@@ -368,8 +370,8 @@ async function updateAggregate(ctx: any, usageData: any, period: string, periodK
       updatedAt: Date.now(),
     });
   } else {
+    // Create system-wide aggregate without userId (undefined/optional)
     await ctx.db.insert("usageAggregates", {
-      userId: null,
       period,
       periodKey,
       ...updateData,

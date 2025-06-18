@@ -180,7 +180,6 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-  .index("by_user_period", ["userId", "period", "periodKey"])
   .index("by_period", ["period", "periodKey"])
   .index("by_user", ["userId"]),
 
