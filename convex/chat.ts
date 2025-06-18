@@ -39,7 +39,6 @@ export const sendMessage = action({
     attachments: v.optional(v.array(v.id("fileAttachments"))),
   },
   handler: async (ctx, args) => {
-    const startTime = Date.now();
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
@@ -71,29 +70,12 @@ export const sendMessage = action({
     
     const recentMessages = messages.slice(-20);
     
-    // get user for API key and track request
+    // get user for API key
     const user = await ctx.runQuery(api.users.getCurrentUser);
     const apiKey = user?.apiKey || process.env.OPENROUTER_API_KEY;
     
     if (!apiKey) {
       throw new Error("No API key available. Please set your OpenRouter API key.");
-    }
-
-    // start request log if function exists
-    let requestLogId: string | null = null;
-    try {
-      // @ts-ignore optional
-      requestLogId = await ctx.runMutation(api.requestLogs?.logRequest, {
-        userId: user?._id,
-        conversationId: args.conversationId,
-        requestType: "chat_completion",
-        method: "POST",
-        endpoint: "/api/v1/chat/completions",
-        status: "pending",
-        timestamp: startTime,
-      });
-    } catch {
-      /* requestLogs table may not exist */
     }
 
     // configure OpenAI client to use OpenRouter
@@ -243,71 +225,11 @@ export const sendMessage = action({
         }
       }
 
-      const endTime = Date.now();
-      const processingTime = endTime - startTime;
-
-      if (requestLogId) {
-        try {
-          // @ts-ignore optional
-          await ctx.runMutation(api.requestLogs?.updateRequest, {
-            id: requestLogId,
-            status: "success",
-            statusCode: 200,
-            processingTimeMs: processingTime,
-          });
-        } catch {
-          /* requestLogs table may not exist */
-        }
-      }
-
-      // store usage tracking if api available
-      if (usageData && generationId) {
-        try {
-          // @ts-ignore optional
-          await ctx.runMutation(api.usageTracking?.recordUsage, {
-            userId: user?._id,
-            conversationId: args.conversationId,
-            messageId: assistantMessageId,
-            generationId,
-            modelSlug: conversation.modelSlug,
-            promptTokens: usageData.prompt_tokens || 0,
-            completionTokens: usageData.completion_tokens || 0,
-            totalTokens: usageData.total_tokens || 0,
-            cachedTokens: usageData.prompt_tokens_details?.cached_tokens || 0,
-            reasoningTokens: usageData.completion_tokens_details?.reasoning_tokens || 0,
-            costInCredits: usageData.cost || 0,
-            costInUSD: (usageData.cost || 0) * 0.000001,
-            timestamp: endTime,
-            processingTimeMs: processingTime,
-          });
-        } catch {
-          /* usageTracking table may not exist */
-        }
-      }
-
       return { success: true, messageId: assistantMessageId, usageData, generationId };
       
     } catch (error) {
       console.error("OpenRouter API error:", error);
       
-      const endTimeErr = Date.now();
-      const processingTimeErr = endTimeErr - startTime;
-
-      if (requestLogId) {
-        try {
-          // @ts-ignore optional
-          await ctx.runMutation(api.requestLogs?.updateRequest, {
-            id: requestLogId,
-            status: "error",
-            statusCode: (error as any)?.status || 500,
-            errorMessage: (error as any)?.message || "Unknown error",
-            processingTimeMs: processingTimeErr,
-          });
-        } catch {
-          /* requestLogs table may not exist */
-        }
-      }
-
       // add error message
       await ctx.runMutation(api.messages.addMessage, {
         conversationId: args.conversationId,
