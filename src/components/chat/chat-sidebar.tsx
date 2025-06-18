@@ -1,10 +1,11 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { MessageSquare, Plus, Trash2, Clock, Share2, Link as LinkIcon, Copy, Check } from "lucide-react"
+import { Plus, Trash2, Clock, Share2, Link as LinkIcon, Copy, Check } from "lucide-react"
 
 import { UserButton } from "@clerk/nextjs"
 import Link from "next/link"
+import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Id } from "../../../convex/_generated/dataModel"
 import { useState } from "react"
@@ -94,8 +95,8 @@ export function ChatSidebar({
       <div className="flex-shrink-0 p-6 border-b border-slate-100 bg-slate-50/50">
         <div className="flex items-center justify-between mb-5">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="h-9 w-9 bg-slate-900 rounded-2xl flex items-center justify-center group-hover:bg-slate-800 transition-colors duration-200 shadow-sm">
-              <MessageSquare className="h-4 w-4 text-white" />
+            <div className="h-9 w-9 bg-white rounded-2xl flex items-center justify-center group-hover:bg-slate-50 transition-colors duration-200 shadow-sm border border-slate-200">
+              <Image src="/favicon-32x32.png" alt="Marshmallow Logo" width={20} height={20} />
             </div>
             <span className="font-semibold text-slate-900 text-xl tracking-tight">Marshmallow</span>
           </Link>
@@ -212,8 +213,8 @@ export function ChatSidebar({
         {(!conversations || conversations.length === 0) && (
           <div className="text-center py-12 px-4">
             <div className="bg-slate-50 rounded-2xl p-8 border border-slate-100">
-              <div className="h-12 w-12 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <MessageSquare className="h-6 w-6 text-slate-400" />
+              <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-200">
+                <Image src="/favicon-32x32.png" alt="Marshmallow Logo" width={24} height={24} className="opacity-60" />
               </div>
                              <p className="text-sm text-slate-600 font-medium mb-1">No conversations yet</p>
                <p className="text-xs text-slate-500">Click &ldquo;New conversation&rdquo; to get started</p>
