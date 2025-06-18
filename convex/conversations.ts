@@ -18,11 +18,14 @@ export const createConversation = mutation({
 
     if (!user) throw new Error("User not found");
 
+    // choose model slug: use provided value or fallback to default
+    const modelSlug = args.modelSlug || "google/gemini-2.5-flash-preview-05-20";
+
     const now = Date.now();
     return await ctx.db.insert("conversations", {
       userId: user._id,
       title: args.title,
-      modelSlug: args.modelSlug || "google/gemini-2.5-flash-preview-05-20",
+      modelSlug,
       mcpUrl: args.mcpUrl ?? undefined,
       createdAt: now,
       updatedAt: now,

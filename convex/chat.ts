@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment, @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any */
 // @ts-nocheck
+
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
@@ -34,6 +36,7 @@ export const sendMessage = action({
   args: {
     conversationId: v.id("conversations"),
     prompt: v.string(),
+    attachments: v.optional(v.array(v.id("fileAttachments"))),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -57,6 +60,7 @@ export const sendMessage = action({
       conversationId: args.conversationId,
       role: "user",
       content: args.prompt,
+      attachments: args.attachments,
     });
 
     // get recent messages for context (last 20)
@@ -97,11 +101,58 @@ export const sendMessage = action({
         content: "...",
       });
 
-      // format messages for OpenAI format
-      const formattedMessages = recentMessages.map((msg: { role: string; content: string }) => ({
-        role: msg.role as "user" | "assistant",
-        content: msg.content,
-      }));
+      /* ---------- build messages with attachment support ---------- */
+      const formattedMessages = await Promise.all(
+        recentMessages.map(async (msg) => {
+          const base = { role: msg.role as "user" | "assistant", content: msg.content } as any;
+
+          if (!msg.attachments?.length) return base;
+
+          const parts: any[] = [
+            { type: "text", text: msg.content || "Please analyse these files." },
+          ];
+
+          for (const attachmentId of msg.attachments) {
+            try {
+              const attachment = await ctx.runQuery(api.fileStorage.getFileAttachment, { attachmentId });
+              if (!attachment?.url) continue;
+
+              if (attachment.fileType.startsWith("image/")) {
+                parts.push({ type: "image_url", image_url: { url: attachment.url } });
+              } else if (attachment.fileType === "application/pdf") {
+                const res = await fetch(attachment.url);
+                if (res.ok) {
+                  const buf = await res.arrayBuffer();
+                  const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+                  parts.push({
+                    type: "file",
+                    file: { filename: attachment.fileName, file_data: `data:application/pdf;base64,${b64}` },
+                  });
+                }
+              }
+            } catch (err) {
+              console.error("[Chat] attachment error", err);
+            }
+          }
+
+          return { ...base, content: parts };
+        })
+      );
+
+      /* detect presence of pdf attachments */
+      let hasPdfAttachments = false;
+      for (const msg of recentMessages) {
+        if (msg.attachments) {
+          for (const attachmentId of msg.attachments) {
+            const attachment = await ctx.runQuery(api.fileStorage.getFileAttachment, { attachmentId });
+            if (attachment?.fileType === "application/pdf") {
+              hasPdfAttachments = true;
+              break;
+            }
+          }
+        }
+        if (hasPdfAttachments) break;
+      }
 
       // check if web search is enabled or model has :online suffix
       const isWebSearchEnabled = conversation.webSearchEnabled || conversation.modelSlug.endsWith(":online");
@@ -113,22 +164,22 @@ export const sendMessage = action({
         messages: formattedMessages,
         stream: true,
         max_tokens: 2000,
-        reasoning: { effort: "high" }, // enable reasoning tokens per OpenRouter docs
+        reasoning: { effort: "high" },
+        usage: { include: true },
+        user: `user_${user?._id || "anon"}`,
       };
 
-      // add web search if enabled and not using :online suffix
+      const plugins: any[] = [];
       if (isWebSearchEnabled && !conversation.modelSlug.endsWith(":online")) {
-        requestParams.plugins = [{
-          id: "web",
-          max_results: webSearchOptions?.maxResults || 5,
-        }];
+        plugins.push({ id: "web", max_results: webSearchOptions?.maxResults || 5 });
       }
+      if (hasPdfAttachments) {
+        plugins.push({ id: "file-parser", pdf: { engine: "pdf-text" } });
+      }
+      if (plugins.length) requestParams.plugins = plugins;
 
-      // add web search options for native search models
       if (webSearchOptions?.searchContextSize) {
-        requestParams.web_search_options = {
-          search_context_size: webSearchOptions.searchContextSize,
-        };
+        requestParams.web_search_options = { search_context_size: webSearchOptions.searchContextSize };
       }
 
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -137,9 +188,13 @@ export const sendMessage = action({
 
       let fullContent = "";
       let inReasoning = false;
+      let usageData: any = null;
+      let generationId: string | null = null;
       
       for await (const chunk of stream) {
-        const reasoningPart = (chunk.choices[0] as {delta?: {reasoning?: string}})?.delta?.reasoning || "";
+        if (!generationId && (chunk as any).id) generationId = (chunk as any).id;
+
+        const reasoningPart = (chunk.choices[0] as any)?.delta?.reasoning || "";
         const contentPart = chunk.choices[0]?.delta?.content || "";
 
         if (reasoningPart) {
@@ -164,9 +219,13 @@ export const sendMessage = action({
             content: fullContent,
           });
         }
+
+        if ((chunk as any).usage) {
+          usageData = (chunk as any).usage;
+        }
       }
 
-      return { success: true, messageId: assistantMessageId };
+      return { success: true, messageId: assistantMessageId, usageData, generationId };
       
     } catch (error) {
       console.error("OpenRouter API error:", error);
