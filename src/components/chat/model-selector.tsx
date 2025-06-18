@@ -5,6 +5,7 @@ import { useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import { ChevronDown, Check } from "lucide-react"
 
+
 interface ModelSelectorProps {
   selectedModel: string
   onModelChange: (modelId: string) => void

@@ -5,6 +5,7 @@ export const createConversation = mutation({
   args: {
     title: v.string(),
     modelSlug: v.optional(v.string()),
+    mcpUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -16,6 +17,7 @@ export const createConversation = mutation({
       .first();
 
     if (!user) throw new Error("User not found");
+
 
     // If no model is specified, use the first enabled model
     let modelSlug = args.modelSlug;
@@ -33,14 +35,16 @@ export const createConversation = mutation({
       }
       
       // Fallback to a default model if no enabled models exist
-      modelSlug = modelSlug || "anthropic/claude-3-haiku";
+      modelSlug = modelSlug || "google/gemini-2.5-flash-preview-05-20";
     }
+
 
     const now = Date.now();
     return await ctx.db.insert("conversations", {
       userId: user._id,
       title: args.title,
       modelSlug,
+
       createdAt: now,
       updatedAt: now,
     });
@@ -145,6 +149,34 @@ export const updateConversationTitle = mutation({
   },
 });
 
+export const updateConversationMcpUrl = mutation({
+  args: {
+    id: v.id("conversations"),
+    mcpUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const conversation = await ctx.db.get(args.id);
+    if (!conversation) throw new Error("Conversation not found");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user || conversation.userId !== user._id) {
+      throw new Error("Unauthorized");
+    }
+
+    await ctx.db.patch(args.id, {
+      mcpUrl: args.mcpUrl ?? undefined,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
 export const deleteConversation = mutation({
   args: {
     id: v.id("conversations"),
@@ -177,5 +209,40 @@ export const deleteConversation = mutation({
 
     // delete the conversation
     await ctx.db.delete(args.id);
+  },
+});
+
+export const updateConversationWebSearch = mutation({
+  args: {
+    id: v.id("conversations"),
+    enabled: v.boolean(),
+    options: v.optional(v.object({
+      maxResults: v.optional(v.number()),
+      searchContextSize: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const conversation = await ctx.db.get(args.id);
+    if (!conversation) throw new Error("Conversation not found");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!user || conversation.userId !== user._id) {
+      throw new Error("Unauthorized");
+    }
+
+    await ctx.db.patch(args.id, {
+      webSearchEnabled: args.enabled,
+      webSearchOptions: args.options,
+      updatedAt: Date.now(),
+    });
+
+    return args.id;
   },
 }); 

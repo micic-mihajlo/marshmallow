@@ -1,21 +1,32 @@
 "use client"
 
-import { Bot, Pencil, X, Check, Settings } from "lucide-react"
+import { Bot, Pencil, X, Check, Globe, Settings } from "lucide-react"
+
 import { useState, useRef, useEffect } from "react"
 import { ModelSelector } from "./model-selector"
 
 interface ChatHeaderProps {
   conversationTitle?: string
   modelSlug?: string
+  mcpUrl?: string
+  webSearchEnabled?: boolean
+  webSearchOptions?: {
+    maxResults?: number
+    searchContextSize?: "low" | "medium" | "high"
+  }
   onModelChange?: (modelId: string) => void
   onTitleChange?: (title: string) => void
+  onMcpUrlChange?: (url: string) => void
+  onWebSearchChange?: (enabled: boolean, options?: { maxResults?: number; searchContextSize?: "low" | "medium" | "high" }) => void
   isLoading?: boolean
 }
 
-export function ChatHeader({ conversationTitle, modelSlug, onModelChange, onTitleChange, isLoading }: ChatHeaderProps) {
+export function ChatHeader({ conversationTitle, modelSlug, mcpUrl, webSearchEnabled, webSearchOptions, onModelChange, onTitleChange, onMcpUrlChange, onWebSearchChange, isLoading }: ChatHeaderProps) {
   const [editing, setEditing] = useState(false)
+  const [mcpEditing, setMcpEditing] = useState(false)
   const [titleDraft, setTitleDraft] = useState(conversationTitle || "")
   const inputRef = useRef<HTMLInputElement>(null)
+  const mcpInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (editing) {
@@ -36,6 +47,16 @@ export function ChatHeader({ conversationTitle, modelSlug, onModelChange, onTitl
   const cancel = () => {
     setTitleDraft(conversationTitle || "")
     setEditing(false)
+  }
+
+  const saveMcp = () => {
+    const url = mcpInputRef.current?.value.trim() || ""
+    onMcpUrlChange?.(url)
+    setMcpEditing(false)
+  }
+
+  const cancelMcp = () => {
+    setMcpEditing(false)
   }
 
   return (
@@ -83,6 +104,7 @@ export function ChatHeader({ conversationTitle, modelSlug, onModelChange, onTitl
         </div>
         
         <div className="flex items-center gap-2">
+
           <a
             href="/settings"
             className="p-2 rounded hover:bg-gray-100 text-gray-500 transition-colors"
@@ -90,6 +112,7 @@ export function ChatHeader({ conversationTitle, modelSlug, onModelChange, onTitl
           >
             <Settings className="h-4 w-4" />
           </a>
+
           {onModelChange && (
             <ModelSelector
               selectedModel={modelSlug || "google/gemini-2.5-flash-preview-05-20"}
@@ -97,6 +120,52 @@ export function ChatHeader({ conversationTitle, modelSlug, onModelChange, onTitl
               disabled={isLoading}
             />
           )}
+
+          {/* mcp controls */}
+          {onMcpUrlChange && (
+            mcpEditing ? (
+              <div className="flex items-center gap-2">
+                <input
+                  ref={mcpInputRef}
+                  defaultValue={mcpUrl || ""}
+                  placeholder="https://mcp-server.com"
+                  className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+                <button onClick={saveMcp} className="p-1 text-green-600 hover:bg-green-50 rounded"><Check className="h-4 w-4"/></button>
+                <button onClick={cancelMcp} className="p-1 text-red-600 hover:bg-red-50 rounded"><X className="h-4 w-4"/></button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setMcpEditing(true)}
+                className="text-xs text-gray-600 hover:text-gray-900 underline"
+              >
+                {mcpUrl ? "Edit MCP" : "Add MCP"}
+              </button>
+            )
+          )}
+
+          {/* web search toggle */}
+          {onWebSearchChange && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onWebSearchChange(!webSearchEnabled, webSearchOptions)}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${
+                  webSearchEnabled 
+                    ? "bg-blue-100 text-blue-700 hover:bg-blue-200" 
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                }`}
+              >
+                <Globe className="h-3 w-3" />
+                Web Search
+              </button>
+              {webSearchEnabled && (
+                <span className="text-xs text-gray-500">
+                  ({webSearchOptions?.maxResults || 5} results, {webSearchOptions?.searchContextSize || "medium"})
+                </span>
+              )}
+            </div>
+          )}
+
         </div>
       </div>
     </div>

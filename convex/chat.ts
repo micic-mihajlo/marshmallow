@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment, @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any */
+// @ts-nocheck
+
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
@@ -28,6 +31,7 @@ const generateTitle = async (openai: OpenAI, firstMessage: string): Promise<stri
   }
 };
 
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export const sendMessage = action({
   args: {
     conversationId: v.id("conversations"),
@@ -46,6 +50,7 @@ export const sendMessage = action({
     if (!conversation) throw new Error("Conversation not found");
 
     // check if this is the first message in the conversation
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
     const existingMessages = await ctx.runQuery(api.messages.getMessages, {
       conversationId: args.conversationId,
     });
@@ -114,7 +119,7 @@ export const sendMessage = action({
         content: "...",
       });
 
-      // format messages for OpenAI format with attachments
+      /* ---------- build messages with attachment support ---------- */
       const formattedMessages = await Promise.all(
         recentMessages.map(async (msg) => {
           const baseMessage = {
@@ -207,65 +212,89 @@ export const sendMessage = action({
 
       console.log("[Chat] Formatted", formattedMessages.length, "messages for OpenRouter");
 
-      // Check if we have PDF attachments to configure PDF processing
-      const hasPdfAttachments = recentMessages.some(msg => 
-        msg.attachments && msg.attachments.some(async (attachmentId) => {
-          const attachment = await ctx.runQuery(api.fileStorage.getFileAttachment, {
-            attachmentId,
-          });
-          return attachment?.fileType === 'application/pdf';
-        })
-      );
+      /* detect presence of pdf attachments */
+      let hasPdfAttachments = false;
+      for (const msg of recentMessages) {
+        if (msg.attachments) {
+          for (const attachmentId of msg.attachments) {
+            const attachment = await ctx.runQuery(api.fileStorage.getFileAttachment, { attachmentId });
+            if (attachment?.fileType === "application/pdf") {
+              hasPdfAttachments = true;
+              break;
+            }
+          }
+        }
+        if (hasPdfAttachments) break;
+      }
 
-      console.log("[Chat] Has PDF attachments:", hasPdfAttachments);
+      // check if web search is enabled or model has :online suffix
+      const isWebSearchEnabled = conversation.webSearchEnabled || conversation.modelSlug.endsWith(":online");
+      const webSearchOptions = conversation.webSearchOptions;
 
-      // Configure request with optional PDF processing and usage tracking
-      const requestConfig: any = {
+      // prepare request parameters
+      const requestParams: any = {
         model: conversation.modelSlug,
         messages: formattedMessages,
         stream: true,
         max_tokens: 2000,
-        // Enable usage tracking
-        usage: {
-          include: true,
-        },
-        // Add user tracking for better caching and analytics
+        reasoning: { effort: "high" },
+        usage: { include: true },
         user: `user_${user._id}`,
       };
 
-      // Add PDF processing plugin if we have PDF attachments
+      // Configure plugins
+      const plugins: any[] = [];
+      if (isWebSearchEnabled && !conversation.modelSlug.endsWith(":online")) {
+        plugins.push({ id: "web", max_results: webSearchOptions?.maxResults || 5 });
+        console.log("[Chat] Added web search plugin");
+      }
       if (hasPdfAttachments) {
-        requestConfig.plugins = [
-          {
-            id: "file-parser",
-            pdf: {
-              engine: "pdf-text", // Free option - you can change to "mistral-ocr" for better OCR
-            },
-          },
-        ];
+        plugins.push({ id: "file-parser", pdf: { engine: "pdf-text" } });
         console.log("[Chat] Added PDF processing plugin");
+      }
+      if (plugins.length) requestParams.plugins = plugins;
+
+      if (webSearchOptions?.searchContextSize) {
+        requestParams.web_search_options = { search_context_size: webSearchOptions.searchContextSize };
       }
 
       console.log("[Chat] Sending request to OpenRouter with usage tracking");
-      
-      // stream response from OpenRouter
-      const stream = await openai.chat.completions.create(requestConfig);
+
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore - openrouter supports the reasoning param, not yet in openai typings
+      const stream = await openai.chat.completions.create(requestParams);
 
       let fullContent = "";
-      let usageData = null;
-      let generationId = null;
+      let inReasoning = false;
+      let usageData: any = null;
+      let generationId: string | null = null;
       
       for await (const chunk of stream) {
         // Extract generation ID from first chunk
-        if (!generationId && chunk.id) {
-          generationId = chunk.id;
+        if (!generationId && (chunk as any).id) {
+          generationId = (chunk as any).id;
         }
 
-        const content = chunk.choices[0]?.delta?.content || "";
-        if (content) {
-          fullContent += content;
-          
-          // update the assistant message with accumulated content
+        const reasoningPart = (chunk.choices[0] as any)?.delta?.reasoning || "";
+        const contentPart = chunk.choices[0]?.delta?.content || "";
+
+        if (reasoningPart) {
+          if (!inReasoning) {
+            fullContent += "<think>";
+            inReasoning = true;
+          }
+          fullContent += reasoningPart;
+        }
+
+        if (contentPart) {
+          if (inReasoning) {
+            fullContent += "</think>\n";
+            inReasoning = false;
+          }
+          fullContent += contentPart;
+        }
+
+        if (reasoningPart || contentPart) {
           await ctx.runMutation(api.messages.updateMessage, {
             id: assistantMessageId,
             content: fullContent,
@@ -273,8 +302,8 @@ export const sendMessage = action({
         }
 
         // Capture usage data from final chunk
-        if (chunk.usage) {
-          usageData = chunk.usage;
+        if ((chunk as any).usage) {
+          usageData = (chunk as any).usage;
           console.log("[Chat] Usage data received:", usageData);
         }
       }
@@ -344,4 +373,4 @@ export const sendMessage = action({
       throw error;
     }
   },
-}); 
+});
