@@ -86,7 +86,7 @@ export const getUserEnabledModels = query({
     // Get Gemini Flash as the mandatory default model
     const geminiFlashModel = await ctx.db
       .query("models")
-      .withIndex("by_slug", (q) => q.eq("slug", "google/gemini-flash-1.5"))
+      .withIndex("by_slug", (q) => q.eq("slug", "google/gemini-2.5-flash-lite-preview-06-17"))
       .first();
 
     // If Gemini Flash doesn't exist, try the older slug
@@ -139,8 +139,8 @@ export const getUserEnabledModels = query({
             ...model,
             settings,
             displayOrder: pref.displayOrder || 999,
-            isDefault: model.slug === "google/gemini-flash-1.5" || model.slug === "google/gemini-2.5-flash-preview-05-20",
-            canDisable: !(model.slug === "google/gemini-flash-1.5" || model.slug === "google/gemini-2.5-flash-preview-05-20"),
+            isDefault: model.slug === "google/gemini-2.5-flash-lite-preview-06-17" || model.slug === "google/gemini-2.5-flash-preview-05-20",
+            canDisable: !(model.slug === "google/gemini-2.5-flash-lite-preview-06-17" || model.slug === "google/gemini-2.5-flash-preview-05-20"),
           });
         }
       }
@@ -195,7 +195,7 @@ export const getUserPreferredDefaultModel = query({
     // Get Gemini Flash as the mandatory default model
     const geminiFlashModel = await ctx.db
       .query("models")
-      .withIndex("by_slug", (q) => q.eq("slug", "google/gemini-flash-1.5"))
+      .withIndex("by_slug", (q) => q.eq("slug", "google/gemini-2.5-flash-lite-preview-06-17"))
       .first();
 
     // If Gemini Flash doesn't exist, try the older slug

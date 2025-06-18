@@ -70,7 +70,7 @@ export default function SettingsPage() {
     // Find the model to check if it's a default model
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const model = modelPreferences?.find((m: any) => m._id === modelId);
-    const isDefault = model && (model.slug === "google/gemini-flash-1.5" || model.slug === "google/gemini-2.5-flash-preview-05-20");
+    const isDefault = model && (model.slug === "google/gemini-2.5-flash-lite-preview-06-17" || model.slug === "google/gemini-2.5-flash-preview-05-20");
     
     // Don't allow disabling default models
     if (isDefault && !enabled) {

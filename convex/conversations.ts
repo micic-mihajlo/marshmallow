@@ -59,14 +59,14 @@ export const createConversation = mutation({
       if (!modelSlug) {
         const geminiFlashModel = await ctx.db
           .query("models")
-          .withIndex("by_slug", (q) => q.eq("slug", "google/gemini-flash-1.5"))
+          .withIndex("by_slug", (q) => q.eq("slug", "google/gemini-2.5-flash-lite-preview-06-17"))
           .first();
 
         if (geminiFlashModel) {
           modelSlug = geminiFlashModel.slug;
         } else {
           // Final fallback
-          modelSlug = "google/gemini-flash-1.5";
+          modelSlug = "google/gemini-2.5-flash-lite-preview-06-17";
         }
       }
     }
