@@ -35,6 +35,7 @@ export const sendMessage = action({
     attachments: v.optional(v.array(v.id("fileAttachments"))),
   },
   handler: async (ctx, args) => {
+    const startTime = Date.now();
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
@@ -67,13 +68,28 @@ export const sendMessage = action({
     
     const recentMessages = messages.slice(-20);
     
-    // get user for API key
+    // get user for API key and tracking
     const user = await ctx.runQuery(api.users.getCurrentUser);
     const apiKey = user?.apiKey || process.env.OPENROUTER_API_KEY;
     
     if (!apiKey) {
       throw new Error("No API key available. Please set your OpenRouter API key.");
     }
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Log request start
+    const requestLogId = await ctx.runMutation(api.requestLogs.logRequest, {
+      userId: user._id,
+      conversationId: args.conversationId,
+      requestType: "chat_completion",
+      method: "POST",
+      endpoint: "/api/v1/chat/completions",
+      status: "pending",
+      timestamp: startTime,
+    });
 
     // configure OpenAI client to use OpenRouter
     const openai = new OpenAI({
@@ -203,12 +219,18 @@ export const sendMessage = action({
 
       console.log("[Chat] Has PDF attachments:", hasPdfAttachments);
 
-      // Configure request with optional PDF processing
+      // Configure request with optional PDF processing and usage tracking
       const requestConfig: any = {
         model: conversation.modelSlug,
         messages: formattedMessages,
         stream: true,
         max_tokens: 2000,
+        // Enable usage tracking
+        usage: {
+          include: true,
+        },
+        // Add user tracking for better caching and analytics
+        user: `user_${user._id}`,
       };
 
       // Add PDF processing plugin if we have PDF attachments
@@ -224,12 +246,21 @@ export const sendMessage = action({
         console.log("[Chat] Added PDF processing plugin");
       }
 
+      console.log("[Chat] Sending request to OpenRouter with usage tracking");
+      
       // stream response from OpenRouter
       const stream = await openai.chat.completions.create(requestConfig);
 
       let fullContent = "";
+      let usageData = null;
+      let generationId = null;
       
       for await (const chunk of stream) {
+        // Extract generation ID from first chunk
+        if (!generationId && chunk.id) {
+          generationId = chunk.id;
+        }
+
         const content = chunk.choices[0]?.delta?.content || "";
         if (content) {
           fullContent += content;
@@ -240,12 +271,68 @@ export const sendMessage = action({
             content: fullContent,
           });
         }
+
+        // Capture usage data from final chunk
+        if (chunk.usage) {
+          usageData = chunk.usage;
+          console.log("[Chat] Usage data received:", usageData);
+        }
       }
 
-      return { success: true, messageId: assistantMessageId };
+      const endTime = Date.now();
+      const processingTime = endTime - startTime;
+
+      // Log successful completion
+      await ctx.runMutation(api.requestLogs.updateRequest, {
+        id: requestLogId,
+        status: "success",
+        statusCode: 200,
+        processingTimeMs: processingTime,
+      });
+
+      // Store usage tracking data
+      if (usageData && generationId) {
+        await ctx.runMutation(api.usageTracking.recordUsage, {
+          userId: user._id,
+          conversationId: args.conversationId,
+          messageId: assistantMessageId,
+          generationId,
+          modelSlug: conversation.modelSlug,
+          promptTokens: usageData.prompt_tokens || 0,
+          completionTokens: usageData.completion_tokens || 0,
+          totalTokens: usageData.total_tokens || 0,
+          cachedTokens: usageData.prompt_tokens_details?.cached_tokens || 0,
+          reasoningTokens: usageData.completion_tokens_details?.reasoning_tokens || 0,
+          costInCredits: usageData.cost || 0,
+          costInUSD: (usageData.cost || 0) * 0.000001, // Convert credits to USD (adjust rate)
+          timestamp: endTime,
+          processingTimeMs: processingTime,
+        });
+
+        console.log("[Chat] Usage data stored successfully");
+      }
+
+      return { 
+        success: true, 
+        messageId: assistantMessageId,
+        usageData,
+        generationId,
+      };
       
     } catch (error) {
+      const endTime = Date.now();
+      const processingTime = endTime - startTime;
+
       console.error("OpenRouter API error:", error);
+
+      // Log failed request
+      await ctx.runMutation(api.requestLogs.updateRequest, {
+        id: requestLogId,
+        status: "error",
+        statusCode: (error as any)?.status || 500,
+        errorMessage: (error as any)?.message || "Unknown error",
+        processingTimeMs: processingTime,
+      });
       
       // add error message
       await ctx.runMutation(api.messages.addMessage, {
