@@ -40,8 +40,8 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, dropdown
     if (conversationModel) {
       modelsToShow.push({
         ...conversationModel,
-        isDefault: conversationModel.slug === "google/gemini-2.0-flash-exp" || conversationModel.slug === "google/gemini-2.5-flash-preview-05-20",
-        canDisable: !(conversationModel.slug === "google/gemini-2.0-flash-exp" || conversationModel.slug === "google/gemini-2.5-flash-preview-05-20"),
+        isDefault: conversationModel.slug === "google/gemini-flash-1.5" || conversationModel.slug === "google/gemini-2.5-flash-preview-05-20",
+        canDisable: !(conversationModel.slug === "google/gemini-flash-1.5" || conversationModel.slug === "google/gemini-2.5-flash-preview-05-20"),
       });
     }
   }
