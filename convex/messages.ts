@@ -127,4 +127,32 @@ export const updateMessage = mutation({
       content: args.content,
     });
   },
+});
+
+// Get messages for a public conversation
+export const getPublicMessages = query({
+  args: { shareId: v.string() },
+  handler: async (ctx, args) => {
+    // Get the conversation by shareId
+    const conversation = await ctx.db
+      .query("conversations")
+      .withIndex("by_share_id", (q) => q.eq("shareId", args.shareId))
+      .first();
+
+    if (!conversation || !conversation.isPublic) {
+      return [];
+    }
+
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", (q) => q.eq("conversationId", conversation._id))
+      .order("asc")
+      .collect();
+
+    // Return messages without file attachment details for privacy
+    return messages.map(message => ({
+      ...message,
+      attachments: undefined, // Remove attachment info for public view
+    }));
+  },
 }); 

@@ -258,27 +258,11 @@ export const MemoizedMarkdown = memo(
     
     // for full markdown content, use full styling
     return (
-      <div className="prose prose-sm max-w-none text-gray-800 prose-headings:text-gray-900 prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-code:text-orange-600 prose-code:bg-orange-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-blockquote:border-l-gray-300 prose-blockquote:text-gray-600">
+      <div className="max-w-none">
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkMath]}
           rehypePlugins={[rehypeKatex, rehypeRaw]}
-          components={{
-            code({ node, inline, className, children, ...props }) {
-              const match = /language-(\w+)/.exec(className || "")
-              const language = match ? match[1] : ""
-
-              if (!inline && language) {
-                return (
-                  <CodeBlock language={language} code={String(children).replace(/\n$/, "")} />
-                )
-              }
-              return (
-                <code className={className} {...props}>
-                  {children}
-                </code>
-              )
-            },
-          }}
+          components={components}
         >
           {transformedContent}
         </ReactMarkdown>

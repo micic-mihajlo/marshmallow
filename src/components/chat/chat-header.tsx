@@ -8,7 +8,6 @@ import { ModelSelector } from "./model-selector"
 interface ChatHeaderProps {
   conversationTitle?: string
   modelSlug?: string
-  mcpUrl?: string
   webSearchEnabled?: boolean
   webSearchOptions?: {
     maxResults?: number
@@ -16,17 +15,14 @@ interface ChatHeaderProps {
   }
   onModelChange?: (modelId: string) => void
   onTitleChange?: (title: string) => void
-  onMcpUrlChange?: (url: string) => void
   onWebSearchChange?: (enabled: boolean, options?: { maxResults?: number; searchContextSize?: "low" | "medium" | "high" }) => void
   isLoading?: boolean
 }
 
-export function ChatHeader({ conversationTitle, modelSlug, mcpUrl, webSearchEnabled, webSearchOptions, onModelChange, onTitleChange, onMcpUrlChange, onWebSearchChange, isLoading }: ChatHeaderProps) {
+export function ChatHeader({ conversationTitle, modelSlug, webSearchEnabled, webSearchOptions, onModelChange, onTitleChange, onWebSearchChange, isLoading }: ChatHeaderProps) {
   const [editing, setEditing] = useState(false)
-  const [mcpEditing, setMcpEditing] = useState(false)
   const [titleDraft, setTitleDraft] = useState(conversationTitle || "")
   const inputRef = useRef<HTMLInputElement>(null)
-  const mcpInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (editing) {
@@ -47,16 +43,6 @@ export function ChatHeader({ conversationTitle, modelSlug, mcpUrl, webSearchEnab
   const cancel = () => {
     setTitleDraft(conversationTitle || "")
     setEditing(false)
-  }
-
-  const saveMcp = () => {
-    const url = mcpInputRef.current?.value.trim() || ""
-    onMcpUrlChange?.(url)
-    setMcpEditing(false)
-  }
-
-  const cancelMcp = () => {
-    setMcpEditing(false)
   }
 
   return (
@@ -121,29 +107,6 @@ export function ChatHeader({ conversationTitle, modelSlug, mcpUrl, webSearchEnab
             />
           )}
 
-          {/* mcp controls */}
-          {onMcpUrlChange && (
-            mcpEditing ? (
-              <div className="flex items-center gap-2">
-                <input
-                  ref={mcpInputRef}
-                  defaultValue={mcpUrl || ""}
-                  placeholder="https://mcp-server.com"
-                  className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-                <button onClick={saveMcp} className="p-1 text-green-600 hover:bg-green-50 rounded"><Check className="h-4 w-4"/></button>
-                <button onClick={cancelMcp} className="p-1 text-red-600 hover:bg-red-50 rounded"><X className="h-4 w-4"/></button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setMcpEditing(true)}
-                className="text-xs text-gray-600 hover:text-gray-900 underline"
-              >
-                {mcpUrl ? "Edit MCP" : "Add MCP"}
-              </button>
-            )
-          )}
-
           {/* web search toggle */}
           {onWebSearchChange && (
             <div className="flex items-center gap-2">
@@ -158,11 +121,6 @@ export function ChatHeader({ conversationTitle, modelSlug, mcpUrl, webSearchEnab
                 <Globe className="h-3 w-3" />
                 Web Search
               </button>
-              {webSearchEnabled && (
-                <span className="text-xs text-gray-500">
-                  ({webSearchOptions?.maxResults || 5} results, {webSearchOptions?.searchContextSize || "medium"})
-                </span>
-              )}
             </div>
           )}
 

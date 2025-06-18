@@ -21,9 +21,12 @@ export default defineSchema({
       maxResults: v.optional(v.number()),
       searchContextSize: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),
     })),
+    shareId: v.optional(v.string()), // unique ID for sharing
+    isPublic: v.optional(v.boolean()), // whether the conversation is publicly shareable
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_user", ["userId"]),
+  }).index("by_user", ["userId"])
+    .index("by_share_id", ["shareId"]),
 
   messages: defineTable({
     conversationId: v.id("conversations"),

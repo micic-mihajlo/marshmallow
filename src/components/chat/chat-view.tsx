@@ -12,10 +12,9 @@ interface ChatViewProps {
   conversationId: Id<"conversations">
   conversationTitle?: string
   modelSlug?: string
-  mcpUrl?: string
 }
 
-export function ChatView({ conversationId, conversationTitle, modelSlug, mcpUrl }: ChatViewProps) {
+export function ChatView({ conversationId, conversationTitle, modelSlug }: ChatViewProps) {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   
@@ -24,7 +23,6 @@ export function ChatView({ conversationId, conversationTitle, modelSlug, mcpUrl 
   const sendMessage = useAction(api.chat.sendMessage)
   const updateConversationModel = useMutation(api.conversations.updateConversationModel)
   const updateConversationTitle = useMutation(api.conversations.updateConversationTitle)
-  const updateConversationMcpUrl = useMutation(api.conversations.updateConversationMcpUrl)
   const updateConversationWebSearch = useMutation(api.conversations.updateConversationWebSearch)
 
   // Transform Convex messages to display format
@@ -63,17 +61,6 @@ export function ChatView({ conversationId, conversationTitle, modelSlug, mcpUrl 
       console.error("Failed to update title:", error)
     }
   }, [updateConversationTitle, conversationId])
-
-  const handleMcpUrlChange = useCallback(async (url: string) => {
-    try {
-      await updateConversationMcpUrl({
-        id: conversationId,
-        mcpUrl: url || undefined,
-      })
-    } catch (error) {
-      console.error("Failed to update MCP URL:", error)
-    }
-  }, [updateConversationMcpUrl, conversationId])
 
   const handleWebSearchChange = useCallback(async (enabled: boolean, options?: { maxResults?: number; searchContextSize?: "low" | "medium" | "high" }) => {
     try {
@@ -119,12 +106,10 @@ export function ChatView({ conversationId, conversationTitle, modelSlug, mcpUrl 
         <ChatHeader 
           conversationTitle={conversationTitle} 
           modelSlug={modelSlug}
-          mcpUrl={mcpUrl}
           webSearchEnabled={conversation?.webSearchEnabled}
           webSearchOptions={conversation?.webSearchOptions}
           onModelChange={handleModelChange}
           onTitleChange={handleTitleChange}
-          onMcpUrlChange={handleMcpUrlChange}
           onWebSearchChange={handleWebSearchChange}
           isLoading={isLoading}
         />
@@ -140,12 +125,10 @@ export function ChatView({ conversationId, conversationTitle, modelSlug, mcpUrl 
       <ChatHeader 
         conversationTitle={conversationTitle} 
         modelSlug={modelSlug}
-        mcpUrl={mcpUrl}
         webSearchEnabled={conversation?.webSearchEnabled}
         webSearchOptions={conversation?.webSearchOptions}
         onModelChange={handleModelChange}
         onTitleChange={handleTitleChange}
-        onMcpUrlChange={handleMcpUrlChange}
         onWebSearchChange={handleWebSearchChange}
         isLoading={isLoading}
       />
