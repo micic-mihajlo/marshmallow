@@ -9,6 +9,7 @@ import { FileUpload } from "./file-upload"
 import { AttachmentPreview } from "./attachment-preview"
 import { GlobalDropZone } from "./global-drop-zone"
 import { ModelSelector } from "./model-selector"
+import { ApiKeyStatus } from "./api-key-status"
 import { Id } from "../../../convex/_generated/dataModel"
 
 interface ChatInputProps {
@@ -279,6 +280,11 @@ export function ChatInput({
                 >
                   <Send className={`h-4 w-4 ${(input.trim() || attachments.length > 0) && !isLoading ? 'rotate-0' : '-rotate-12'} transition-transform duration-200`} />
                 </Button>
+              </div>
+              
+              {/* API Key Status */}
+              <div className="mt-2 flex justify-end">
+                <ApiKeyStatus />
               </div>
             </form>
           </div>

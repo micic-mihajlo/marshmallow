@@ -1,7 +1,11 @@
 "use client"
 
-import { Bot, Pencil, X, Check } from "lucide-react"
+import { Bot, Pencil, X, Check, Key } from "lucide-react"
 import { useState, useRef, useEffect } from "react"
+import { useQuery } from "convex/react"
+import { api } from "../../../convex/_generated/api"
+import { BYOKSettings } from "./byok-settings"
+import { Button } from "@/components/ui/button"
 
 interface ChatHeaderProps {
   conversationTitle?: string
@@ -34,9 +38,11 @@ export function ChatHeader({ conversationTitle, onTitleChange }: ChatHeaderProps
     setEditing(false)
   }
 
+  const userApiKeyStatus = useQuery(api.userApiKeys.getUserApiKey)
+
   return (
     <div className="h-16 border-b border-gray-100 bg-white flex items-center px-6">
-      <div className="max-w-4xl mx-auto w-full flex items-center justify-center">
+      <div className="max-w-4xl mx-auto w-full flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 bg-gray-900 rounded-xl flex items-center justify-center">
             <Bot className="h-4 w-4 text-white" />
@@ -76,6 +82,20 @@ export function ChatHeader({ conversationTitle, onTitleChange }: ChatHeaderProps
               </div>
             )}
           </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <BYOKSettings>
+            <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              <span className="hidden sm:inline">
+                {userApiKeyStatus?.hasApiKey ? "My API Key" : "Bring Your Own Key"}
+              </span>
+              {userApiKeyStatus?.hasApiKey && (
+                <div className="h-2 w-2 bg-green-500 rounded-full" />
+              )}
+            </Button>
+          </BYOKSettings>
         </div>
       </div>
     </div>
