@@ -25,8 +25,23 @@ export default defineSchema({
     content: v.string(),
     timestamp: v.number(),
     tokenCount: v.optional(v.number()), // tokens used for this message
-    // future: attachments, etc.
+    attachments: v.optional(v.array(v.id("fileAttachments"))), // file attachment IDs
   }).index("by_conversation", ["conversationId"]),
+
+  fileAttachments: defineTable({
+    userId: v.id("users"),
+    conversationId: v.id("conversations"),
+    messageId: v.optional(v.id("messages")), // null for pending uploads
+    fileName: v.string(),
+    fileType: v.string(), // mime type
+    fileSize: v.number(),
+    storageId: v.id("_storage"), // Convex file storage ID
+    createdAt: v.number(),
+    uploadedAt: v.number(),
+  })
+  .index("by_user", ["userId"])
+  .index("by_conversation", ["conversationId"])
+  .index("by_message", ["messageId"]),
 
   // Admin Portal Tables
   models: defineTable({
