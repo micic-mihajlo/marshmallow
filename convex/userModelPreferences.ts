@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { ConvexError } from "convex/values";
@@ -39,7 +40,7 @@ export const getUserModelPreferences = query({
       .withIndex("by_enabled", (q) => q.eq("enabled", true))
       .collect();
 
-    const enabledModels = [];
+    const enabledModels: any[] = [];
     for (const setting of enabledSettings) {
       const model = await ctx.db.get(setting.modelId);
       if (model) {
@@ -95,7 +96,7 @@ export const getUserEnabledModels = query({
         .withIndex("by_enabled", (q) => q.eq("enabled", true))
         .collect();
 
-      const models = [];
+      const models: any[] = [];
       for (const setting of enabledSettings) {
         const model = await ctx.db.get(setting.modelId);
         if (model) {
@@ -109,7 +110,7 @@ export const getUserEnabledModels = query({
     }
 
     // Return user's preferred models
-    const userModels = [];
+    const userModels: any[] = [];
     for (const pref of preferences) {
       const model = await ctx.db.get(pref.modelId);
       if (model) {

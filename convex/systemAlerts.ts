@@ -1,6 +1,5 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
 
 // Create a new system alert
 export const createAlert = mutation({
@@ -153,7 +152,7 @@ export const checkUsageThresholds = mutation({
     totalCost: v.number(),
     period: v.string(), // "daily", "weekly", "monthly"
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<string[]> => {
     // Get user quotas
     const quotas = await ctx.db
       .query("userQuotas")
@@ -161,13 +160,13 @@ export const checkUsageThresholds = mutation({
       .filter((q) => q.eq(q.field("isActive"), true))
       .collect();
 
-    const alerts = [];
+    const alerts: string[] = [];
 
     // Check token quota
     const tokenQuota = quotas.find(q => q.quotaType === `${args.period}_tokens`);
     if (tokenQuota && args.totalTokens > tokenQuota.limit * 0.8) {
       const severity = args.totalTokens > tokenQuota.limit ? "critical" : "high";
-      const alertId = await ctx.runMutation(api.systemAlerts.createAlert, {
+      const alertId = await ctx.db.insert("systemAlerts", {
         alertType: "token_threshold",
         severity,
         title: `Token Usage ${severity === "critical" ? "Exceeded" : "Warning"}`,
@@ -178,6 +177,9 @@ export const checkUsageThresholds = mutation({
           tokenLimit: tokenQuota.limit,
           period: args.period,
         },
+        isRead: false,
+        isResolved: false,
+        createdAt: Date.now(),
       });
       alerts.push(alertId);
     }
@@ -186,7 +188,7 @@ export const checkUsageThresholds = mutation({
     const costThreshold = 10.0;
     if (args.totalCost > costThreshold * 0.8) {
       const severity = args.totalCost > costThreshold ? "critical" : "high";
-      const alertId = await ctx.runMutation(api.systemAlerts.createAlert, {
+      const alertId = await ctx.db.insert("systemAlerts", {
         alertType: "cost_threshold",
         severity,
         title: `Cost ${severity === "critical" ? "Exceeded" : "Warning"}`,
@@ -197,6 +199,9 @@ export const checkUsageThresholds = mutation({
           threshold: costThreshold,
           period: args.period,
         },
+        isRead: false,
+        isResolved: false,
+        createdAt: Date.now(),
       });
       alerts.push(alertId);
     }

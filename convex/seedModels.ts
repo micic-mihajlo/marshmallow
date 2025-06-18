@@ -55,7 +55,16 @@ export const _wipeAndReseedModels = internalMutation({
   args: {
     userId: v.id("users"),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{
+    success: boolean;
+    message: string;
+    stats: {
+      total: number;
+      created: number;
+      updated: number;
+      skipped: number;
+    };
+  }> => {
     try {
       console.log("🗑️ Step 1: Deleting all existing models and settings...");
       
@@ -108,13 +117,22 @@ export const _wipeAndReseedModels = internalMutation({
 });
 
 // Helper mutation for processing the fetched models (called internally by the action)
-export const _processOpenRouterModels = mutation({
+export const _processOpenRouterModels = internalMutation({
   args: {
     models: v.array(v.any()),
     overwrite: v.optional(v.boolean()),
     userId: v.id("users"),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{
+    success: boolean;
+    message: string;
+    stats: {
+      total: number;
+      created: number;
+      updated: number;
+      skipped: number;
+    };
+  }> => {
     const now = Date.now();
     let createdCount = 0;
     let updatedCount = 0;
@@ -290,7 +308,16 @@ export const seedOpenRouterModelsFromAPI = action({
   args: {
     overwrite: v.optional(v.boolean()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{
+    success: boolean;
+    message: string;
+    stats: {
+      total: number;
+      created: number;
+      updated: number;
+      skipped: number;
+    };
+  }> => {
     // Check if user is authenticated and is admin
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
@@ -436,7 +463,16 @@ export const seedOpenRouterModels = mutation({
   args: {
     overwrite: v.optional(v.boolean()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{
+    success: boolean;
+    message: string;
+    stats: {
+      total: number;
+      created: number;
+      updated: number;
+      skipped: number;
+    };
+  }> => {
     // Check if user is authenticated and is admin
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
@@ -556,7 +592,7 @@ export const seedOpenRouterModels = mutation({
 // Legacy function for backwards compatibility - just returns basic success
 export const seedSampleModels = mutation({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<{ message: string }> => {
     // Check if models already exist
     const existingModels = await ctx.db.query("models").collect();
     if (existingModels.length > 0) {

@@ -488,7 +488,15 @@ export const getUserUsageBreakdown = query({
     });
 
     // Generate daily usage for chart
-    const dailyUsage = [];
+    const dailyUsage: Array<{
+      date: string;
+      byokCost: number;
+      systemCost: number;
+      byokTokens: number;
+      systemTokens: number;
+      totalCost: number;
+      totalTokens: number;
+    }> = [];
     for (let i = daysBack - 1; i >= 0; i--) {
       const date = new Date(Date.now() - (i * 24 * 60 * 60 * 1000));
       const dateKey = date.toISOString().split('T')[0];

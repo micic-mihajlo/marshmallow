@@ -20,7 +20,8 @@ export default function ChatPage() {
   const deleteConversation = useMutation(api.conversations.deleteConversation)
   
   const effectiveConversationId = selectedConversationId || (conversations && conversations.length > 0 ? conversations[0]._id : null)
-  const selectedConversation = conversations?.find(c => c._id === effectiveConversationId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const selectedConversation = conversations?.find((c: any) => c._id === effectiveConversationId)
 
   useEffect(() => {
     if (effectiveConversationId && !selectedConversationId) {
@@ -75,7 +76,8 @@ export default function ChatPage() {
       
       // if we deleted the currently selected conversation, select another one
       if (selectedConversationId === conversationId) {
-        const remainingConversations = conversations?.filter(c => c._id !== conversationId)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const remainingConversations = conversations?.filter((c: any) => c._id !== conversationId)
         if (remainingConversations && remainingConversations.length > 0) {
           setSelectedConversationId(remainingConversations[0]._id)
         } else {

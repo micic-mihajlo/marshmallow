@@ -214,7 +214,7 @@ export const getUserActivityStats = query({
   },
   handler: async (ctx, args) => {
     const days = args.days || 30;
-    const activity = [];
+    const activity: Array<{ date: string; activeUsers: number; messages: number }> = [];
     
     for (let i = 0; i < days; i++) {
       const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000);

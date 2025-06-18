@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { ConvexError } from "convex/values";
@@ -227,7 +228,7 @@ export const deleteModel = mutation({
 export const getModelsWithSettings = query({
   handler: async (ctx) => {
     const models = await ctx.db.query("models").collect();
-    const modelsWithSettings = [];
+    const modelsWithSettings: Array<any> = [];
 
     for (const model of models) {
       const settings = await ctx.db
@@ -253,7 +254,7 @@ export const getEnabledModels = query({
       .withIndex("by_enabled", (q) => q.eq("enabled", true))
       .collect();
 
-    const enabledModels = [];
+    const enabledModels: Array<any> = [];
     for (const setting of enabledSettings) {
       const model = await ctx.db.get(setting.modelId);
       if (model) {

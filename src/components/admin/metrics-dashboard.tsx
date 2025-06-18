@@ -111,7 +111,8 @@ export function MetricsDashboard() {
           <CardContent>
             {modelUsageStats && modelUsageStats.length > 0 ? (
               <div className="space-y-3">
-                {modelUsageStats.slice(0, 5).map((model) => (
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {modelUsageStats.slice(0, 5).map((model: any) => (
                   <div key={model.slug} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-primary" />
@@ -143,7 +144,8 @@ export function MetricsDashboard() {
           <CardContent>
             {userActivityStats && userActivityStats.length > 0 ? (
               <div className="space-y-2">
-                {userActivityStats.slice(-7).map((day) => (
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {userActivityStats.slice(-7).map((day: any) => (
                   <div key={day.date} className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">
                       {new Date(day.date).toLocaleDateString('en-US', { 

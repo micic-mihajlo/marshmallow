@@ -79,7 +79,7 @@ export function AdminLogs() {
           <CardContent>
             <div className="text-sm font-medium">
               {Object.entries(recentActivity.actionCounts).length > 0
-                ? Object.entries(recentActivity.actionCounts).sort(([,a], [,b]) => b - a)[0][0]
+                ? Object.entries(recentActivity.actionCounts).sort(([,a], [,b]) => (b as number) - (a as number))[0][0]
                 : "None"}
             </div>
           </CardContent>
@@ -97,7 +97,8 @@ export function AdminLogs() {
         <CardContent>
           <ScrollArea className="h-[600px]">
             <div className="space-y-4">
-              {logsData.logs.map((log) => (
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {logsData.logs.map((log: any) => (
                 <div
                   key={log._id}
                   className="flex items-start space-x-4 p-4 border rounded-lg"

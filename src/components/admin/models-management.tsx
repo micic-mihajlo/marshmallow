@@ -308,7 +308,8 @@ export function ModelsManagement() {
 
       {/* Models List */}
       <div className="grid gap-4">
-        {models?.map((model) => (
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {models?.map((model: any) => (
           <Card key={model._id}>
             <CardHeader>
               <div className="flex items-center justify-between">

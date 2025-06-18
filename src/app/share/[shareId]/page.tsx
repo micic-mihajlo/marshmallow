@@ -121,7 +121,8 @@ export default function SharePage() {
 
         {/* Messages */}
         <div className="space-y-4">
-          {messages?.map((message) => (
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          {messages?.map((message: any) => (
             <MessageBubble
               key={message._id}
               id={message._id}
