@@ -18,9 +18,10 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, dropdown
   const [isOpen, setIsOpen] = useState(false)
   
   const enabledModels = useQuery(api.userModelPreferences.getUserEnabledModels)
+  const allEnabledModels = useQuery(api.models.getEnabledModels) // Fallback to all admin-enabled models
   const user = useQuery(api.users.getCurrentUser)
   
-  if (!enabledModels) {
+  if (!enabledModels || !allEnabledModels) {
     return (
       <div className="px-4 py-3 text-sm text-gray-500 bg-gray-50/80 rounded-xl border border-gray-200 animate-pulse">
         Loading models...
@@ -28,10 +29,22 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, dropdown
     )
   }
   
-  const models = enabledModels.map(model => ({
+  // Use user's enabled models, but if the selected model is not in there, include all admin-enabled models
+  let modelsToShow = enabledModels;
+  const selectedInUserModels = enabledModels.find(m => m.slug === selectedModel);
+  
+  if (!selectedInUserModels && selectedModel) {
+    // If the selected model is not in user's enabled models, show all admin-enabled models
+    // This happens when switching to conversations that use models not in user preferences
+    modelsToShow = allEnabledModels;
+  }
+  
+  const models = modelsToShow.map(model => ({
     id: model.slug,
     name: model.name,
     provider: model.provider,
+    isDefault: model.isDefault || false,
+    canDisable: model.canDisable !== false,
   }))
 
   // Check if user has BYOK configured
@@ -68,6 +81,11 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, dropdown
         <div className="flex flex-col items-start gap-0.5">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-gray-900">{currentModel.name}</span>
+            {currentModel.isDefault && (
+              <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                Default
+              </Badge>
+            )}
             {requiresBYOK(currentModel.id) && (
               <Badge variant={hasBYOK ? "default" : "destructive"} className="text-xs px-1.5 py-0.5">
                 <Key className="h-3 w-3 mr-1" />
@@ -101,6 +119,11 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, dropdown
                 <div className="flex flex-col gap-0.5">
                   <div className="flex items-center gap-2">
                     <div className="font-semibold text-gray-900 text-sm group-hover:text-gray-800">{model.name}</div>
+                    {model.isDefault && (
+                      <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                        Default
+                      </Badge>
+                    )}
                     {requiresBYOK(model.id) && (
                       <Badge variant={hasBYOK ? "default" : "destructive"} className="text-xs px-1.5 py-0.5">
                         <Key className="h-3 w-3 mr-1" />

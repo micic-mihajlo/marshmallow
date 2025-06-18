@@ -104,7 +104,7 @@ export default function ChatPage() {
       <main className="flex-1 flex flex-col min-w-0">
         {effectiveConversationId ? (
           <ChatView
-            key={effectiveConversationId}
+            key={`${effectiveConversationId}-${selectedConversation?.modelSlug}`}
             conversationId={effectiveConversationId}
             conversationTitle={selectedConversation?.title}
             modelSlug={selectedConversation?.modelSlug}

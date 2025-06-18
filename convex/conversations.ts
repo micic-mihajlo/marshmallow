@@ -19,23 +19,56 @@ export const createConversation = mutation({
     if (!user) throw new Error("User not found");
 
 
-    // If no model is specified, use the first enabled model
+    // If no model is specified, use the user's preferred default model
     let modelSlug = args.modelSlug;
     if (!modelSlug) {
-      const enabledSettings = await ctx.db
-        .query("modelSettings")
-        .withIndex("by_enabled", (q) => q.eq("enabled", true))
-        .first();
-      
-      if (enabledSettings) {
-        const model = await ctx.db.get(enabledSettings.modelId);
-        if (model) {
-          modelSlug = model.slug;
+      // Get user's enabled preferences
+      const preferences = await ctx.db
+        .query("userModelPreferences")
+        .withIndex("by_user_enabled", (q) => q.eq("userId", user._id).eq("isEnabled", true))
+        .collect();
+
+      // If user has preferences, find the highest priority enabled model
+      if (preferences.length > 0) {
+        // Sort preferences by display order
+        const sortedPreferences = preferences.sort((a, b) => {
+          const aOrder = a.displayOrder || 999;
+          const bOrder = b.displayOrder || 999;
+          return aOrder - bOrder;
+        });
+
+        // Find the first enabled model
+        for (const pref of sortedPreferences) {
+          const model = await ctx.db.get(pref.modelId);
+          if (model) {
+            // Check if model is still admin-enabled
+            const settings = await ctx.db
+              .query("modelSettings")
+              .withIndex("by_model", (q) => q.eq("modelId", model._id))
+              .first();
+            
+            if (settings && settings.enabled) {
+              modelSlug = model.slug;
+              break;
+            }
+          }
         }
       }
-      
-      // Fallback to a default model if no enabled models exist
-      modelSlug = modelSlug || "google/gemini-2.5-flash-preview-05-20";
+
+      // If still no model found, fall back to Gemini Flash
+      if (!modelSlug) {
+        const geminiFlashModel = await ctx.db
+          .query("models")
+          .withIndex("by_slug", (q) => q.eq("slug", "google/gemini-2.0-flash-exp"))
+          .first();
+
+        if (geminiFlashModel) {
+          modelSlug = geminiFlashModel.slug;
+        } else {
+          // Final fallback
+          modelSlug = "google/gemini-2.5-flash-preview-05-20";
+        }
+      }
     }
 
 

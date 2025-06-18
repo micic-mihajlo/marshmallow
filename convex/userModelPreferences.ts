@@ -83,13 +83,25 @@ export const getUserEnabledModels = query({
       throw new ConvexError("User not found");
     }
 
+    // Get Gemini Flash as the mandatory default model
+    const geminiFlashModel = await ctx.db
+      .query("models")
+      .withIndex("by_slug", (q) => q.eq("slug", "google/gemini-2.0-flash-exp"))
+      .first();
+
+    // If Gemini Flash doesn't exist, try the older slug
+    const fallbackGeminiModel = geminiFlashModel || await ctx.db
+      .query("models")
+      .withIndex("by_slug", (q) => q.eq("slug", "google/gemini-2.5-flash-preview-05-20"))
+      .first();
+
     // Get user's enabled preferences
     const preferences = await ctx.db
       .query("userModelPreferences")
       .withIndex("by_user_enabled", (q) => q.eq("userId", user._id).eq("isEnabled", true))
       .collect();
 
-    // If user has no preferences, return all admin-enabled models
+    // If user has no preferences, return all admin-enabled models with Gemini Flash guaranteed
     if (preferences.length === 0) {
       const enabledSettings = await ctx.db
         .query("modelSettings")
@@ -103,9 +115,28 @@ export const getUserEnabledModels = query({
           models.push({
             ...model,
             settings: setting,
+            isDefault: model.slug === "google/gemini-2.0-flash-exp" || model.slug === "google/gemini-2.5-flash-preview-05-20",
+            canDisable: !(model.slug === "google/gemini-2.0-flash-exp" || model.slug === "google/gemini-2.5-flash-preview-05-20"),
           });
         }
       }
+
+      // Ensure Gemini Flash is included even if not admin-enabled
+      if (fallbackGeminiModel && !models.find(m => m._id === fallbackGeminiModel._id)) {
+        models.push({
+          ...fallbackGeminiModel,
+          settings: {
+            enabled: true,
+            allowFileUpload: fallbackGeminiModel.supportsFileUpload,
+            allowImageUpload: fallbackGeminiModel.supportsImageUpload,
+            allowVision: fallbackGeminiModel.supportsVision,
+            allowStreaming: fallbackGeminiModel.supportsStreaming,
+          },
+          isDefault: true,
+          canDisable: false,
+        });
+      }
+
       return models;
     }
 
@@ -125,9 +156,28 @@ export const getUserEnabledModels = query({
             ...model,
             settings,
             displayOrder: pref.displayOrder || 999,
+            isDefault: model.slug === "google/gemini-2.0-flash-exp" || model.slug === "google/gemini-2.5-flash-preview-05-20",
+            canDisable: !(model.slug === "google/gemini-2.0-flash-exp" || model.slug === "google/gemini-2.5-flash-preview-05-20"),
           });
         }
       }
+    }
+
+    // Ensure Gemini Flash is always included in user's enabled models
+    if (fallbackGeminiModel && !userModels.find(m => m._id === fallbackGeminiModel._id)) {
+      userModels.push({
+        ...fallbackGeminiModel,
+        settings: {
+          enabled: true,
+          allowFileUpload: fallbackGeminiModel.supportsFileUpload,
+          allowImageUpload: fallbackGeminiModel.supportsImageUpload,
+          allowVision: fallbackGeminiModel.supportsVision,
+          allowStreaming: fallbackGeminiModel.supportsStreaming,
+        },
+        displayOrder: 0, // Put it first
+        isDefault: true,
+        canDisable: false,
+      });
     }
 
     // Sort by display order, then by name
@@ -139,6 +189,77 @@ export const getUserEnabledModels = query({
     });
 
     return userModels;
+  },
+});
+
+// Get user's preferred default model for new conversations
+export const getUserPreferredDefaultModel = query({
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Not authenticated");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+    
+    if (!user) {
+      throw new ConvexError("User not found");
+    }
+
+    // Get Gemini Flash as the mandatory default model
+    const geminiFlashModel = await ctx.db
+      .query("models")
+      .withIndex("by_slug", (q) => q.eq("slug", "google/gemini-2.0-flash-exp"))
+      .first();
+
+    // If Gemini Flash doesn't exist, try the older slug
+    const fallbackGeminiModel = geminiFlashModel || await ctx.db
+      .query("models")
+      .withIndex("by_slug", (q) => q.eq("slug", "google/gemini-2.5-flash-preview-05-20"))
+      .first();
+
+    // Get user's enabled preferences
+    const preferences = await ctx.db
+      .query("userModelPreferences")
+      .withIndex("by_user_enabled", (q) => q.eq("userId", user._id).eq("isEnabled", true))
+      .collect();
+
+    // If user has preferences, find the highest priority enabled model
+    if (preferences.length > 0) {
+      // Sort preferences by display order
+      const sortedPreferences = preferences.sort((a, b) => {
+        const aOrder = a.displayOrder || 999;
+        const bOrder = b.displayOrder || 999;
+        return aOrder - bOrder;
+      });
+
+      // Find the first enabled model
+      for (const pref of sortedPreferences) {
+        const model = await ctx.db.get(pref.modelId);
+        if (model) {
+          // Check if model is still admin-enabled
+          const settings = await ctx.db
+            .query("modelSettings")
+            .withIndex("by_model", (q) => q.eq("modelId", model._id))
+            .first();
+          
+          if (settings && settings.enabled) {
+            return model.slug;
+          }
+        }
+      }
+    }
+
+    // If no user preferences or no enabled models, return Gemini Flash
+    if (fallbackGeminiModel) {
+      return fallbackGeminiModel.slug;
+    }
+
+    // Final fallback
+    return "google/gemini-2.5-flash-preview-05-20";
   },
 });
 

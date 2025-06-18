@@ -67,6 +67,16 @@ export default function SettingsPage() {
   }, [modelPreferences, preferences.length]);
 
   const handleToggleModel = (modelId: Id<"models">, enabled: boolean) => {
+    // Find the model to check if it's a default model
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const model = modelPreferences?.find((m: any) => m._id === modelId);
+    const isDefault = model && (model.slug === "google/gemini-2.0-flash-exp" || model.slug === "google/gemini-2.5-flash-preview-05-20");
+    
+    // Don't allow disabling default models
+    if (isDefault && !enabled) {
+      return;
+    }
+    
     setPreferences(prev => {
       const updated = prev.map(pref => 
         pref.modelId === modelId 
@@ -332,6 +342,7 @@ export default function SettingsPage() {
               .map((model: any) => {
                 const userPref = preferences.find(p => p.modelId === model._id);
                 const isEnabled = userPref?.isEnabled ?? model.userEnabled;
+                const isDefault = model.slug === "google/gemini-2.0-flash-exp" || model.slug === "google/gemini-2.5-flash-preview-05-20";
 
                 return (
                   <Card key={model._id} className="transition-all hover:shadow-md">
@@ -341,8 +352,9 @@ export default function SettingsPage() {
                           <div className="flex items-center gap-3">
                             <div className="flex items-center space-x-2">
                               <Switch
-                                checked={isEnabled}
-                                onCheckedChange={(enabled) => handleToggleModel(model._id, enabled)}
+                                checked={isEnabled || isDefault}
+                                onCheckedChange={(enabled) => !isDefault && handleToggleModel(model._id, enabled)}
+                                disabled={isDefault}
                                 id={`model-${model._id}`}
                               />
                               <Label htmlFor={`model-${model._id}`} className="sr-only">
@@ -358,14 +370,25 @@ export default function SettingsPage() {
                             <Badge variant="outline" className="text-xs">
                               {model.provider.charAt(0).toUpperCase() + model.provider.slice(1)}
                             </Badge>
-                            <Badge variant={isEnabled ? "default" : "secondary"}>
-                              {isEnabled ? "Enabled" : "Disabled"}
+                            {isDefault && (
+                              <Badge variant="secondary" className="text-xs">
+                                Default
+                              </Badge>
+                            )}
+                            <Badge variant={isEnabled || isDefault ? "default" : "secondary"}>
+                              {isEnabled || isDefault ? "Enabled" : "Disabled"}
                             </Badge>
                           </div>
 
                           {model.description && (
                             <p className="text-sm text-muted-foreground">
                               {model.description}
+                            </p>
+                          )}
+                          
+                          {isDefault && (
+                            <p className="text-xs text-muted-foreground italic">
+                              This is the default model and cannot be disabled. It serves as a fallback for all users.
                             </p>
                           )}
 
