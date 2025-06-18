@@ -32,6 +32,7 @@ export const sendMessage = action({
   args: {
     conversationId: v.id("conversations"),
     prompt: v.string(),
+    attachments: v.optional(v.array(v.id("fileAttachments"))),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -49,11 +50,14 @@ export const sendMessage = action({
     });
     const isFirstMessage = existingMessages.length === 0;
 
+    console.log("[Chat] Adding user message with attachments:", args.attachments?.length || 0);
+    
     // add user message
     await ctx.runMutation(api.messages.addMessage, {
       conversationId: args.conversationId,
       role: "user",
       content: args.prompt,
+      attachments: args.attachments,
     });
 
     // get recent messages for context (last 20)
@@ -94,11 +98,69 @@ export const sendMessage = action({
         content: "...",
       });
 
-      // format messages for OpenAI format
-      const formattedMessages = recentMessages.map((msg) => ({
-        role: msg.role as "user" | "assistant",
-        content: msg.content,
-      }));
+      // format messages for OpenAI format with attachments
+      const formattedMessages = await Promise.all(
+        recentMessages.map(async (msg) => {
+          const baseMessage = {
+            role: msg.role as "user" | "assistant",
+            content: msg.content,
+          };
+
+          // If this message has attachments, format them for OpenRouter
+          if (msg.attachments && msg.attachments.length > 0) {
+            console.log("[Chat] Formatting message with", msg.attachments.length, "attachments");
+            
+            const attachmentContents = [];
+            
+            // Add text content first
+            attachmentContents.push({
+              type: "text",
+              text: msg.content || "Please analyze these files.",
+            });
+
+            // Process each attachment
+            for (const attachmentId of msg.attachments) {
+              try {
+                const attachment = await ctx.runQuery(api.fileStorage.getFileAttachment, {
+                  attachmentId,
+                });
+
+                if (attachment && attachment.url) {
+                  console.log("[Chat] Processing attachment:", attachment.fileName, attachment.fileType);
+                  
+                  if (attachment.fileType.startsWith('image/')) {
+                    // For images, use image_url format
+                    attachmentContents.push({
+                      type: "image_url",
+                      image_url: {
+                        url: attachment.url,
+                      },
+                    });
+                  } else if (attachment.fileType === 'application/pdf') {
+                    // For PDFs, we need to fetch and encode as base64
+                    // Note: This is a simplified version - in practice you'd want to
+                    // fetch the file content and convert to base64
+                    console.log("[Chat] PDF attachment detected - URL:", attachment.url);
+                    // For now, we'll just mention the file in text
+                    attachmentContents[0].text += `\n\nAttached PDF file: ${attachment.fileName}`;
+                  }
+                }
+              } catch (error) {
+                console.error("[Chat] Error processing attachment:", attachmentId, error);
+              }
+            }
+
+            return {
+              ...baseMessage,
+              content: attachmentContents,
+            };
+          }
+
+          return baseMessage;
+        })
+      );
+
+      console.log("[Chat] Formatted", formattedMessages.length, "messages for OpenRouter");
 
       // stream response from OpenRouter
       const stream = await openai.chat.completions.create({

@@ -16,6 +16,7 @@ import type {
 import type * as adminLogs from "../adminLogs.js";
 import type * as chat from "../chat.js";
 import type * as conversations from "../conversations.js";
+import type * as fileStorage from "../fileStorage.js";
 import type * as messages from "../messages.js";
 import type * as metrics from "../metrics.js";
 import type * as modelSettings from "../modelSettings.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   adminLogs: typeof adminLogs;
   chat: typeof chat;
   conversations: typeof conversations;
+  fileStorage: typeof fileStorage;
   messages: typeof messages;
   metrics: typeof metrics;
   modelSettings: typeof modelSettings;
