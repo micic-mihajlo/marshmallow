@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Settings, 
   Eye, 
@@ -21,8 +22,10 @@ import {
   RotateCcw,
   CheckCircle,
   Search,
-  Filter
+  Filter,
+  Key
 } from "lucide-react";
+import { ProviderKeys } from "@/components/settings/provider-keys";
 import { Id } from "../../../convex/_generated/dataModel";
 
 interface ModelPreference {
@@ -132,9 +135,9 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Model Preferences</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
           <p className="text-muted-foreground">
-            Choose which AI models you want to use in your conversations
+            Manage your model preferences and API keys
           </p>
         </div>
         <div className="flex gap-2">
@@ -160,235 +163,255 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Available Models</CardTitle>
-            <Settings className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Your Enabled Models</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.enabled}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Providers</CardTitle>
-            <Filter className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.providers}</div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Tabs */}
+      <Tabs defaultValue="models" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="models" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Model Preferences
+          </TabsTrigger>
+          <TabsTrigger value="api-keys" className="flex items-center gap-2">
+            <Key className="h-4 w-4" />
+            API Keys
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Changes Alert */}
-      {hasChanges && (
-        <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4 text-orange-600" />
-                <span className="text-sm font-medium text-orange-800">
-                  You have unsaved changes to your model preferences
-                </span>
-              </div>
-              <Button size="sm" onClick={handleSavePreferences} disabled={isSaving}>
-                {isSaving ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4 mr-2" />
-                )}
-                Save Now
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Filters & Search</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search models by name, slug, or provider..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="flex gap-4">
-              <div className="min-w-[150px]">
-                <select
-                  value={selectedProvider}
-                  onChange={(e) => setSelectedProvider(e.target.value)}
-                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:ring-2 focus:ring-ring focus:outline-none"
-                >
-                  <option value="all">All Providers</option>
-                  {providers.map((provider) => (
-                    <option key={provider} value={provider}>
-                      {provider.charAt(0).toUpperCase() + provider.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="enabled-only"
-                  checked={showEnabledOnly}
-                  onCheckedChange={setShowEnabledOnly}
-                />
-                <Label htmlFor="enabled-only" className="text-sm">
-                  Enabled Only
-                </Label>
-              </div>
-            </div>
+        <TabsContent value="models" className="space-y-6">
+          {/* Stats Cards */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Available Models</CardTitle>
+                <Settings className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.total}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Your Enabled Models</CardTitle>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{stats.enabled}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Providers</CardTitle>
+                <Filter className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.providers}</div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Models List */}
-      <div className="space-y-4">
-        {modelPreferences && modelPreferences.length > 0 ? (
-          <div className="grid gap-4">
-            {modelPreferences
-              .filter((model) => {
-                const matchesSearch = 
-                  model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  model.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  model.provider.toLowerCase().includes(searchQuery.toLowerCase());
-                
-                const matchesProvider = selectedProvider === "all" || model.provider === selectedProvider;
-                
-                const userPref = preferences.find(p => p.modelId === model._id);
-                const isEnabled = userPref?.isEnabled ?? model.userEnabled;
-                const matchesEnabled = !showEnabledOnly || isEnabled;
+          {/* Changes Alert */}
+          {hasChanges && (
+            <Card className="border-orange-200 bg-orange-50">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Settings className="h-4 w-4 text-orange-600" />
+                    <span className="text-sm font-medium text-orange-800">
+                      You have unsaved changes to your model preferences
+                    </span>
+                  </div>
+                  <Button size="sm" onClick={handleSavePreferences} disabled={isSaving}>
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    Save Now
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-                return matchesSearch && matchesProvider && matchesEnabled;
-              })
-              .map((model) => {
-                const userPref = preferences.find(p => p.modelId === model._id);
-                const isEnabled = userPref?.isEnabled ?? model.userEnabled;
-
-                return (
-                  <Card key={model._id} className="transition-all hover:shadow-md">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 space-y-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center space-x-2">
-                              <Switch
-                                checked={isEnabled}
-                                onCheckedChange={(enabled) => handleToggleModel(model._id, enabled)}
-                                id={`model-${model._id}`}
-                              />
-                              <Label htmlFor={`model-${model._id}`} className="sr-only">
-                                Enable {model.name}
-                              </Label>
-                            </div>
-                            <div>
-                              <h3 className="font-semibold text-lg">{model.name}</h3>
-                              <p className="text-sm text-muted-foreground font-mono">
-                                {model.slug}
-                              </p>
-                            </div>
-                            <Badge variant="outline" className="text-xs">
-                              {model.provider.charAt(0).toUpperCase() + model.provider.slice(1)}
-                            </Badge>
-                            <Badge variant={isEnabled ? "default" : "secondary"}>
-                              {isEnabled ? "Enabled" : "Disabled"}
-                            </Badge>
-                          </div>
-
-                          {model.description && (
-                            <p className="text-sm text-muted-foreground">
-                              {model.description}
-                            </p>
-                          )}
-
-                          <div className="flex flex-wrap gap-2">
-                            {model.supportsFileUpload && (
-                              <Badge variant="outline" className="text-xs">
-                                <FileUp className="h-3 w-3 mr-1" />
-                                File Upload
-                              </Badge>
-                            )}
-                            {model.supportsImageUpload && (
-                              <Badge variant="outline" className="text-xs">
-                                <Image className="h-3 w-3 mr-1" />
-                                Image Upload
-                              </Badge>
-                            )}
-                            {model.supportsVision && (
-                              <Badge variant="outline" className="text-xs">
-                                <Eye className="h-3 w-3 mr-1" />
-                                Vision
-                              </Badge>
-                            )}
-                            {model.supportsStreaming && (
-                              <Badge variant="outline" className="text-xs">
-                                <Zap className="h-3 w-3 mr-1" />
-                                Streaming
-                              </Badge>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            {model.maxTokens && (
-                              <span>Max Tokens: {model.maxTokens.toLocaleString()}</span>
-                            )}
-                            {model.costPer1kTokens && (
-                              <span className="flex items-center gap-1">
-                                <DollarSign className="h-3 w-3" />
-                                ${model.costPer1kTokens.toFixed(6)}/1K tokens
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center">
-                          {isEnabled ? (
-                            <CheckCircle className="h-5 w-5 text-green-500" />
-                          ) : (
-                            <div className="h-5 w-5 rounded-full border-2 border-gray-300" />
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-          </div>
-        ) : (
+          {/* Filters */}
           <Card>
-            <CardContent className="py-8">
-              <div className="text-center text-muted-foreground">
-                <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium">No models available</p>
-                <p className="text-sm">
-                  Contact your administrator to enable models for use.
-                </p>
+            <CardHeader>
+              <CardTitle className="text-lg">Filters & Search</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search models by name, slug, or provider..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="min-w-[150px]">
+                    <select
+                      value={selectedProvider}
+                      onChange={(e) => setSelectedProvider(e.target.value)}
+                      className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:ring-2 focus:ring-ring focus:outline-none"
+                    >
+                      <option value="all">All Providers</option>
+                      {providers.map((provider) => (
+                        <option key={provider} value={provider}>
+                          {provider.charAt(0).toUpperCase() + provider.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="enabled-only"
+                      checked={showEnabledOnly}
+                      onCheckedChange={setShowEnabledOnly}
+                    />
+                    <Label htmlFor="enabled-only" className="text-sm">
+                      Enabled Only
+                    </Label>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
+
+          {/* Models List */}
+          <div className="space-y-4">
+            {modelPreferences && modelPreferences.length > 0 ? (
+              <div className="grid gap-4">
+                {modelPreferences
+                  .filter((model) => {
+                    const matchesSearch = 
+                      model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      model.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      model.provider.toLowerCase().includes(searchQuery.toLowerCase());
+                    
+                    const matchesProvider = selectedProvider === "all" || model.provider === selectedProvider;
+                    
+                    const userPref = preferences.find(p => p.modelId === model._id);
+                    const isEnabled = userPref?.isEnabled ?? model.userEnabled;
+                    const matchesEnabled = !showEnabledOnly || isEnabled;
+
+                    return matchesSearch && matchesProvider && matchesEnabled;
+                  })
+                  .map((model) => {
+                    const userPref = preferences.find(p => p.modelId === model._id);
+                    const isEnabled = userPref?.isEnabled ?? model.userEnabled;
+
+                    return (
+                      <Card key={model._id} className="transition-all hover:shadow-md">
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 space-y-3">
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center space-x-2">
+                                  <Switch
+                                    checked={isEnabled}
+                                    onCheckedChange={(enabled) => handleToggleModel(model._id, enabled)}
+                                    id={`model-${model._id}`}
+                                  />
+                                  <Label htmlFor={`model-${model._id}`} className="sr-only">
+                                    Enable {model.name}
+                                  </Label>
+                                </div>
+                                <div>
+                                  <h3 className="font-semibold text-lg">{model.name}</h3>
+                                  <p className="text-sm text-muted-foreground font-mono">
+                                    {model.slug}
+                                  </p>
+                                </div>
+                                <Badge variant="outline" className="text-xs">
+                                  {model.provider.charAt(0).toUpperCase() + model.provider.slice(1)}
+                                </Badge>
+                                <Badge variant={isEnabled ? "default" : "secondary"}>
+                                  {isEnabled ? "Enabled" : "Disabled"}
+                                </Badge>
+                              </div>
+
+                              {model.description && (
+                                <p className="text-sm text-muted-foreground">
+                                  {model.description}
+                                </p>
+                              )}
+
+                              <div className="flex flex-wrap gap-2">
+                                {model.supportsFileUpload && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <FileUp className="h-3 w-3 mr-1" />
+                                    File Upload
+                                  </Badge>
+                                )}
+                                {model.supportsImageUpload && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <Image className="h-3 w-3 mr-1" />
+                                    Image Upload
+                                  </Badge>
+                                )}
+                                {model.supportsVision && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    Vision
+                                  </Badge>
+                                )}
+                                {model.supportsStreaming && (
+                                  <Badge variant="outline" className="text-xs">
+                                    <Zap className="h-3 w-3 mr-1" />
+                                    Streaming
+                                  </Badge>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                {model.maxTokens && (
+                                  <span>Max Tokens: {model.maxTokens.toLocaleString()}</span>
+                                )}
+                                {model.costPer1kTokens && (
+                                  <span className="flex items-center gap-1">
+                                    <DollarSign className="h-3 w-3" />
+                                    ${model.costPer1kTokens.toFixed(6)}/1K tokens
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center">
+                              {isEnabled ? (
+                                <CheckCircle className="h-5 w-5 text-green-500" />
+                              ) : (
+                                <div className="h-5 w-5 rounded-full border-2 border-gray-300" />
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="py-8">
+                  <div className="text-center text-muted-foreground">
+                    <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium">No models available</p>
+                    <p className="text-sm">
+                      Contact your administrator to enable models for use.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="api-keys" className="space-y-6">
+          <ProviderKeys />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 } 

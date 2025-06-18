@@ -21,6 +21,7 @@ import type * as messages from "../messages.js";
 import type * as metrics from "../metrics.js";
 import type * as modelSettings from "../modelSettings.js";
 import type * as models from "../models.js";
+import type * as providerKeys from "../providerKeys.js";
 import type * as requestLogs from "../requestLogs.js";
 import type * as seedModels from "../seedModels.js";
 import type * as systemAlerts from "../systemAlerts.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   metrics: typeof metrics;
   modelSettings: typeof modelSettings;
   models: typeof models;
+  providerKeys: typeof providerKeys;
   requestLogs: typeof requestLogs;
   seedModels: typeof seedModels;
   systemAlerts: typeof systemAlerts;

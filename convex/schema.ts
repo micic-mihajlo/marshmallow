@@ -210,6 +210,54 @@ export default defineSchema({
   .index("by_model", ["modelId"])
   .index("by_user_enabled", ["userId", "isEnabled"]),
 
+  // BYOK: Provider API Keys (encrypted storage)
+  providerKeys: defineTable({
+    userId: v.id("users"),
+    provider: v.string(), // "openai" | "anthropic" | "google" | "openrouter"
+    keyHash: v.string(), // SHA-256 hash for existence checks
+    keyCipher: v.string(), // Encrypted API key
+    iv: v.string(), // Initialization vector for encryption
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    lastUsed: v.optional(v.number()),
+    lastValidated: v.optional(v.number()),
+    validationStatus: v.optional(v.string()), // "valid" | "invalid" | "expired"
+  })
+  .index("by_user", ["userId"])
+  .index("by_user_provider", ["userId", "provider"])
+  .index("by_provider", ["provider"])
+  .index("by_active", ["isActive"]),
+
+  // BYOK: Usage Tracking
+  byokUsage: defineTable({
+    userId: v.id("users"),
+    provider: v.string(),
+    modelSlug: v.string(),
+    tokensUsed: v.number(),
+    costUSD: v.number(),
+    requestId: v.string(),
+    timestamp: v.number(),
+    success: v.boolean(),
+    errorCode: v.optional(v.string()),
+  })
+  .index("by_user", ["userId"])
+  .index("by_provider", ["provider"])
+  .index("by_timestamp", ["timestamp"])
+  .index("by_user_provider", ["userId", "provider"]),
+
+  // BYOK: Rate Limiting
+  userRateLimits: defineTable({
+    userId: v.id("users"),
+    provider: v.string(),
+    windowStart: v.number(),
+    requestCount: v.number(),
+    tokenCount: v.number(),
+    lastReset: v.number(),
+  })
+  .index("by_user", ["userId"])
+  .index("by_user_provider", ["userId", "provider"])
+  .index("by_window", ["windowStart"]),
+
   systemAlerts: defineTable({
     alertType: v.string(), // "high_usage", "cost_threshold", "error_rate", etc.
     severity: v.string(), // "low", "medium", "high", "critical"

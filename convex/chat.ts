@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
@@ -34,7 +35,7 @@ export const sendMessage = action({
     prompt: v.string(),
     attachments: v.optional(v.array(v.id("fileAttachments"))),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ success: boolean; messageId: any; usageData: any; generationId: any }> => {
     const startTime = Date.now();
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -70,26 +71,54 @@ export const sendMessage = action({
     
     // get user for API key and tracking
     const user = await ctx.runQuery(api.users.getCurrentUser);
-    const apiKey = user?.apiKey || process.env.OPENROUTER_API_KEY;
     
-    if (!apiKey) {
-      throw new Error("No API key available. Please set your OpenRouter API key.");
-    }
-
     if (!user) {
       throw new Error("User not found");
     }
 
-    // Log request start
-    const requestLogId = await ctx.runMutation(api.requestLogs.logRequest, {
+    // Try to get user's own API key for this provider (BYOK)
+    const provider = conversation.modelSlug.split('/')[0];
+    const userKey = await ctx.runQuery(api.providerKeys.getProviderKeyForUser, {
       userId: user._id,
-      conversationId: args.conversationId,
-      requestType: "chat_completion",
-      method: "POST",
-      endpoint: "/api/v1/chat/completions",
-      status: "pending",
-      timestamp: startTime,
+      provider,
     });
+
+    let apiKey = user?.apiKey || process.env.OPENROUTER_API_KEY;
+    let isUserKey = false;
+
+    // If user has their own key for this provider, use it
+    if (userKey && userKey.keyCipher && userKey.iv) {
+      try {
+        const { decryptApiKey } = await import("../src/lib/crypto");
+        const decryptedKey = await decryptApiKey(
+          userKey.keyCipher,
+          userKey.iv,
+          user._id
+        );
+        apiKey = decryptedKey;
+        isUserKey = true;
+        console.log(`[BYOK] Using user's own ${provider} API key`);
+      } catch (error) {
+        console.error(`[BYOK] Failed to decrypt ${provider} key, falling back to default:`, error);
+      }
+    }
+    
+    if (!apiKey) {
+      throw new Error("No API key available. Please set your OpenRouter API key or add your own provider keys.");
+    }
+
+          // Log request start
+      const requestLogId = await ctx.runMutation(api.requestLogs.logRequest, {
+        userId: user._id,
+        conversationId: args.conversationId,
+        requestType: "chat_completion",
+        method: "POST",
+        endpoint: isUserKey 
+          ? `/api/v1/chat/completions (${provider} BYOK)`
+          : "/api/v1/chat/completions",
+        status: "pending",
+        timestamp: startTime,
+      });
 
     // configure OpenAI client to use OpenRouter
     const openai = new OpenAI({
@@ -249,7 +278,7 @@ export const sendMessage = action({
       console.log("[Chat] Sending request to OpenRouter with usage tracking");
       
       // stream response from OpenRouter
-      const stream = await openai.chat.completions.create(requestConfig);
+      const stream = await openai.chat.completions.create(requestConfig) as any;
 
       let fullContent = "";
       let usageData = null;
