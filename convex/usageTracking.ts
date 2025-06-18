@@ -535,4 +535,40 @@ export const getUserUsageBreakdown = query({
       dailyUsage,
     };
   },
+});
+
+// Fix existing usage records that have incorrect cost calculations
+export const fixUsageCosts = mutation({
+  args: {},
+  handler: async (ctx) => {
+    console.log("[UsageTracking] Starting cost correction...");
+    
+    // Get all usage records with incorrect costs (very small USD cost but non-zero credits)
+    const records = await ctx.db
+      .query("usageTracking")
+      .filter((q) => 
+        q.and(
+          q.gt(q.field("costInCredits"), 0),
+          q.lt(q.field("costInUSD"), 0.001) // Very small USD cost indicates the bug
+        )
+      )
+      .collect();
+
+    console.log(`[UsageTracking] Found ${records.length} records to fix`);
+
+    let fixed = 0;
+    for (const record of records) {
+      await ctx.db.patch(record._id, {
+        costInUSD: record.costInCredits, // Fix: OpenRouter returns USD directly
+      });
+      fixed++;
+      
+      if (fixed % 100 === 0) {
+        console.log(`[UsageTracking] Fixed ${fixed}/${records.length} records...`);
+      }
+    }
+
+    console.log(`[UsageTracking] Cost correction completed: ${fixed} records fixed`);
+    return { totalRecords: records.length, fixed };
+  },
 }); 

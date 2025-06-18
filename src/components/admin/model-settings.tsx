@@ -11,14 +11,27 @@ import { FileUp, Image, Eye, Zap, Settings2, Save } from "lucide-react";
 import { useState } from "react";
 import { Id } from "../../../convex/_generated/dataModel";
 
+type ModelSettingFields = {
+  allowFileUpload?: boolean;
+  allowImageUpload?: boolean;
+  allowVision?: boolean;
+  allowStreaming?: boolean;
+  maxTokensOverride?: number;
+  rateLimitPerUser?: number;
+};
+
 export function ModelSettings() {
-  const [pendingChanges, setPendingChanges] = useState<Record<string, any>>({});
+  const [pendingChanges, setPendingChanges] = useState<Record<string, ModelSettingFields>>({});
   
   const models = useQuery(api.models.getModelsWithSettings);
   const updateModelSettings = useMutation(api.modelSettings.updateModelSettings);
   const toggleModelEnabled = useMutation(api.modelSettings.toggleModelEnabled);
 
-  const handleSettingChange = (modelId: Id<"models">, field: string, value: any) => {
+  const handleSettingChange = <K extends keyof ModelSettingFields>(
+    modelId: Id<"models">,
+    field: K,
+    value: ModelSettingFields[K]
+  ) => {
     setPendingChanges(prev => ({
       ...prev,
       [modelId]: {
@@ -57,7 +70,11 @@ export function ModelSettings() {
     }
   };
 
-  const getEffectiveValue = (modelId: Id<"models">, field: string, currentValue: any) => {
+  const getEffectiveValue = <K extends keyof ModelSettingFields>(
+    modelId: Id<"models">,
+    field: K,
+    currentValue: ModelSettingFields[K]
+  ) => {
     return pendingChanges[modelId]?.[field] ?? currentValue;
   };
 
@@ -95,7 +112,8 @@ export function ModelSettings() {
       </div>
 
       <div className="grid gap-6">
-        {models.map((model) => (
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {models.map((model: any) => (
           <Card key={model._id}>
             <CardHeader>
               <div className="flex items-center justify-between">

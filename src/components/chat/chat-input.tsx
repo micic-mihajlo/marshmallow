@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Send, X, Globe, Settings, AlertTriangle } from "lucide-react"
-import { useRef, KeyboardEvent, useState } from "react"
+import { useRef, KeyboardEvent, useState, useEffect } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import { FileUpload } from "./file-upload"
@@ -10,6 +10,7 @@ import { AttachmentPreview } from "./attachment-preview"
 import { GlobalDropZone } from "./global-drop-zone"
 import { ModelSelector } from "./model-selector"
 import { ApiKeyStatus } from "./api-key-status"
+import { BYOKSettings } from "./byok-settings"
 import { Id } from "../../../convex/_generated/dataModel"
 
 interface ChatInputProps {
@@ -61,6 +62,13 @@ export function ChatInput({
     currentUser && 
     !currentUser.useBYOK
   )
+
+  // Clear upload error when switching to a model that doesn't require BYOK
+  useEffect(() => {
+    if (!requiresBYOKButNotEnabled && uploadError && uploadError.includes("BYOK")) {
+      setUploadError(null)
+    }
+  }, [requiresBYOKButNotEnabled, uploadError])
 
   console.log("[ChatInput] Rendering with", attachments.length, "attachments")
   console.log("[ChatInput] BYOK check:", {
@@ -253,12 +261,11 @@ export function ChatInput({
                   </p>
                   <p className="text-sm text-amber-700 mt-1">
                     This model requires you to bring your own OpenRouter API key. 
-                    <a 
-                      href="/settings" 
-                      className="underline hover:text-amber-900 ml-1"
-                    >
-                      Enable BYOK in settings
-                    </a> to use this model.
+                    <BYOKSettings>
+                      <button className="underline hover:text-amber-900 ml-1">
+                        Enable BYOK in settings
+                      </button>
+                    </BYOKSettings> to use this model.
                   </p>
                 </div>
               </div>

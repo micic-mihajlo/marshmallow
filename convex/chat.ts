@@ -373,7 +373,7 @@ export const sendMessage = action({
           cachedTokens: usageData.prompt_tokens_details?.cached_tokens || 0,
           reasoningTokens: usageData.completion_tokens_details?.reasoning_tokens || 0,
           costInCredits: usageData.cost || 0,
-          costInUSD: (usageData.cost || 0) * 0.000001, // Convert credits to USD (adjust rate)
+          costInUSD: usageData.cost || 0, // OpenRouter returns cost directly in USD
           timestamp: endTime,
           processingTimeMs: processingTime,
         });
